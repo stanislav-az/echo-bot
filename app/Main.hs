@@ -7,28 +7,41 @@ import           Network.HTTP.Simple
 import           Bot
 import           Data.Aeson
 import           Data.Maybe (fromJust)
-import           Control.Monad (unless)
+import           Control.Monad (unless, when)
+import           Control.Monad.State
+import           Control.Monad.Trans.Class
+import           Data.Maybe (maybe)
 
 main :: IO ()
-main = fun 0
+main = evalStateT printLastMsg Nothing
 
-fun :: Integer -> IO ()
-fun offset = do
+printLastMsg :: StateT (Maybe Integer) IO ()
+printLastMsg = do
+    offset <- get
+    jresponse <- lift $ getJResponse offset
+    unless (null $ result jresponse) $ do
+        let lastID = lastUpdtID jresponse
+            msgText = jresponse & result & last & message & text
+        put $ Just lastID
+        when (maybe True (lastID /=) offset) (lift $ putStrLn msgText)
+    printLastMsg
+
+getJResponse :: Maybe Integer -> IO JResponse
+getJResponse offset = do 
     response <- httpLBS $ getUpdates offset
-    putStrLn $ "The status code was: " ++
-               show (getResponseStatusCode response)
     let unparsed = getResponseBody response
         parsed = decode unparsed :: Maybe JResponse
-        lastMsg = parsed & fromJust & result & last & message & message_id
-    --LB.putStrLn unparsed
-    print parsed
-    unless (lastMsg == offset) (fun lastMsg)
-    
+    return $ fromJust parsed
+
+lastUpdtID :: JResponse -> Integer
+lastUpdtID = update_id . last . result
+
 standardRequest :: String
 standardRequest = "https://api.telegram.org/bot631489276:AAGPK2n_xXE7_nB95uBkui2U6dMxcdbLMyM/"
 
-getUpdates :: Integer -> Request
-getUpdates offset = parseRequest_ $ standardRequest ++ "getUpdates" ++ "?offset=" ++ show offset
+getUpdates :: Maybe Integer -> Request
+getUpdates Nothing = parseRequest_ $ standardRequest ++ "getUpdates"
+getUpdates (Just offset) = parseRequest_ $ standardRequest ++ "getUpdates" ++ "?offset=" ++ show offset
 
 sendMessage :: Request
 sendMessage = parseRequest_ $ standardRequest ++ "sendMessage"

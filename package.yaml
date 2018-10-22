@@ -24,6 +24,8 @@ dependencies:
 - http-conduit
 - bytestring
 - aeson
+- mtl
+- transformers
 
 library:
   source-dirs: src
