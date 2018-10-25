@@ -26,6 +26,7 @@ dependencies:
 - aeson
 - mtl
 - transformers
+- case-insensitive
 
 library:
   source-dirs: src
