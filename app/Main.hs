@@ -12,36 +12,52 @@ import           Data.Aeson
 import           Data.Maybe (fromJust)
 import           Control.Monad (unless, when, zipWithM)
 import           Control.Monad.State
+import           Control.Monad.Writer
 import           Control.Monad.Trans.Class
 import           Data.Maybe (maybe)
 import           Prelude hiding (id)
 import           Data.String (fromString)
+import           Data.Time.Clock.System (getSystemTime, systemToUTCTime)
 
 main :: IO ()
-main = evalStateT sendLastMsgs Nothing
+main = do
+    writeFile "./log/debug.log" ""
+    evalStateT sendLastMsgs Nothing
+
+{-
+writeLog :: WriterT LB.ByteString IO () -> IO ()
+writeLog w = do
+    logBS <- execWriterT w
+    LB.appendFile "./log/debug.log" logBS
+    -- время событие 
+    -- debug, error
+
+tell $ LB.fromStrict $ BC.pack $ 
+-}
 
 --                     lastUpdtID
 sendLastMsgs :: StateT (Maybe Integer) IO ()
 sendLastMsgs = do
-    offsetU <- get
-    jresponse <- lift $ getJResponse offsetU
+    offset <- get
+    response <- lift $ httpLBS $ getUpdates offset
+    
+    let iLog = "The response status code was: " ++ (show $ getResponseStatusCode response) ++ "\n"
+        unparsed = getResponseBody response
+        parsed = decode unparsed :: Maybe JResponse
+        jresponse = fromJust parsed -- потенциальная ошибка не обрабатыватся
+
     unless (null $ result jresponse) $ do
         let updts = tail $ result jresponse
             lastUpdtID = case updts of
-                [] -> offsetU
+                [] -> offset
                 _  -> Just $ update_id $ last updts
             msgText = text . message
             chatID = id . chat . message
         put lastUpdtID
         lift $ zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)
-    sendLastMsgs
-
-getJResponse :: Maybe Integer -> IO JResponse
-getJResponse offset = do 
-    response <- httpLBS $ getUpdates offset
-    let unparsed = getResponseBody response
-        parsed = decode unparsed :: Maybe JResponse
-    return $ fromJust parsed -- потенциальная ошибка не обрабатыватся
+    
+    --lift $ appendFile "./log/debug.log" iLog
+    sendLastMsgs          
 
 standardRequest :: String
 standardRequest = "https://api.telegram.org/bot631489276:AAGPK2n_xXE7_nB95uBkui2U6dMxcdbLMyM/"
@@ -61,4 +77,9 @@ sendMessage chatID msgText = do
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
         endReq = setRequestBody (fromString bodyStr) reqWithHeaders
     httpLBS endReq
-    return ()
+    sysTime <- getSystemTime
+    let currTime = systemToUTCTime sysTime
+    appendFile "./log/debug.log" $ "DEBUG entry at " ++ show currTime ++ "\n"
+                                    ++"\tA message was sent\n" 
+                                    ++ "\tTo: " ++ show chatID ++ "\n"
+                                    ++ "\tText: " ++ msgText ++ "\n"
