@@ -3,13 +3,14 @@ module Main where
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Char8 as BC
 import           Data.CaseInsensitive
 import           Network.HTTP.Conduit
 import           Network.HTTP.Simple
 import           Bot
 import           Data.Aeson
 import           Data.Maybe (fromJust)
-import           Control.Monad (unless, when)
+import           Control.Monad (unless, when, zipWithM)
 import           Control.Monad.State
 import           Control.Monad.Trans.Class
 import           Data.Maybe (maybe)
@@ -17,55 +18,47 @@ import           Prelude hiding (id)
 import           Data.String (fromString)
 
 main :: IO ()
-main = evalStateT sendLastMsg (Nothing,Nothing)
+main = evalStateT sendLastMsgs Nothing
 
---                     lastUpdateID   lastMsgID
-sendLastMsg :: StateT (Maybe Integer, Maybe Integer) IO ()
-sendLastMsg = do
-    (offsetU, offsetM) <- get
+--                     lastUpdtID
+sendLastMsgs :: StateT (Maybe Integer) IO ()
+sendLastMsgs = do
+    offsetU <- get
     jresponse <- lift $ getJResponse offsetU
     unless (null $ result jresponse) $ do
-        let lastUpdtID = jresponse & result & last & update_id
-            msgText = jresponse & result & last & message & text
-            chatID = jresponse & result & last & message & chat & id
-            msgID = jresponse & result & last & message & message_id
-            isNewUpdt = maybe True (lastUpdtID /=) offsetU
-            isNewMsg = maybe False (msgID /=) offsetM
-        put (Just lastUpdtID, Just msgID)
-        when (isNewUpdt && isNewMsg) $ do
-            lift $ putStrLn msgText
-            msgSent <- lift $ sendMessage chatID msgText
-            (notChanged, _) <- get
-            put (notChanged, Just $ message_id msgSent) 
-    sendLastMsg
+        let updts = tail $ result jresponse
+            lastUpdtID = case updts of
+                [] -> offsetU
+                _  -> Just $ update_id $ last updts
+            msgText = text . message
+            chatID = id . chat . message
+        put lastUpdtID
+        lift $ zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)
+    sendLastMsgs
 
 getJResponse :: Maybe Integer -> IO JResponse
 getJResponse offset = do 
     response <- httpLBS $ getUpdates offset
     let unparsed = getResponseBody response
         parsed = decode unparsed :: Maybe JResponse
-    return $ fromJust parsed
+    return $ fromJust parsed -- потенциальная ошибка не обрабатыватся
 
 standardRequest :: String
 standardRequest = "https://api.telegram.org/bot631489276:AAGPK2n_xXE7_nB95uBkui2U6dMxcdbLMyM/"
 
 getUpdates :: Maybe Integer -> Request
-getUpdates Nothing = parseRequest_ $ standardRequest ++ "getUpdates"
-getUpdates (Just offset) = parseRequest_ $ standardRequest ++ "getUpdates" ++ "?offset=" ++ show offset
+getUpdates Nothing = parseRequest_ $ "GET " ++ standardRequest ++ "getUpdates"
+getUpdates (Just offset) = setQueryString query req where
+    req = parseRequest_ $ "GET " ++ standardRequest ++ "getUpdates" 
+    query = [("offset", Just $ BC.pack $ show offset)
+            ,("timeout", Just "10")
+            ,("allowed_updates[]", Just "message")]
 
-sendMessage :: Integer -> String -> IO Message
+sendMessage :: Integer -> String -> IO ()
 sendMessage chatID msgText = do
     let req = parseRequest_ $ "POST " ++ standardRequest ++  "sendMessage"
         bodyStr = "{\"chat_id\": \"" ++ show chatID ++ "\", \"text\": \"" ++ msgText ++ "\"}"
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
         endReq = setRequestBody (fromString bodyStr) reqWithHeaders
-    response <- httpLBS endReq
-    let unparsed = getResponseBody response
-        parsed = decode (LB.init $ LB.drop 20 unparsed) :: Maybe Message
-    return $ fromJust parsed
-    
-infixl 0 &
-(&) = flip ($)
-
-msg :: Message
-msg = undefined
+    httpLBS endReq
+    return ()
