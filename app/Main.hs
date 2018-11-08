@@ -8,21 +8,38 @@ import           Data.CaseInsensitive
 import           Network.HTTP.Conduit
 import           Network.HTTP.Simple
 import           Bot
+import           Errors
 import           Data.Aeson
-import           Data.Maybe (fromJust)
+import           Data.Maybe (fromJust, isNothing)
 import           Control.Monad (unless, when, zipWithM)
 import           Control.Monad.State
 import           Control.Monad.Writer
+import           Control.Monad.Except
 import           Control.Monad.Trans.Class
 import           Data.Maybe (maybe)
 import           Prelude hiding (id)
 import           Data.String (fromString)
 import           Data.Time.Clock.System (getSystemTime, systemToUTCTime)
+import           Data.Time.Clock (UTCTime(..))
 
 main :: IO ()
 main = do
     writeFile "./log/debug.log" ""
-    evalStateT sendLastMsgs Nothing
+    writeFile "./log/error.log" ""
+    evalStateT (runExceptT $ catchError sendLastMsgs botErrorHandler) Nothing
+    return ()
+
+botErrorHandler :: BotError -> ExceptT BotError (StateT (Maybe Integer) IO) ()
+botErrorHandler (NoParse body) = do
+    currTime <- lift $ lift $ getCurrTime
+    lift $ lift $ appendFile "./log/error.log" $ "ERROR entry at " ++ show currTime ++ "\n"
+                                              ++ "\tCould not parse response body\n" 
+                                              ++ "\tResponse body was: " ++ body ++ "\n"
+botErrorHandler (ResponseError status) = do
+    currTime <- lift $ lift $ getCurrTime
+    lift $ lift $ appendFile "./log/error.log" $ "ERROR entry at " ++ show currTime ++ "\n"
+                                              ++ "\tResponse status was not ok\n" 
+                                              ++ "\tResponse status was: " ++ status ++ "\n"
 
 {-
 writeLog :: WriterT LB.ByteString IO () -> IO ()
@@ -35,16 +52,26 @@ writeLog w = do
 tell $ LB.fromStrict $ BC.pack $ 
 -}
 
+{-To DO
+--where to keep a token
+--is it ok to write debug/warning logs in situ
+--is there another way to clear file on execution than [writeFile "./log/debug.log" ""]
+-}
+
 --                     lastUpdtID
-sendLastMsgs :: StateT (Maybe Integer) IO ()
+sendLastMsgs :: ExceptT BotError (StateT (Maybe Integer) IO) ()
 sendLastMsgs = do
     offset <- get
-    response <- lift $ httpLBS $ getUpdates offset
+    response <- lift $ lift $ httpLBS $ getUpdates offset
     
-    let iLog = "The response status code was: " ++ (show $ getResponseStatusCode response) ++ "\n"
-        unparsed = getResponseBody response
+    let isOK = case getResponseStatusCode response of
+                    200 -> True
+                    _   -> False
+    unless isOK $ throwError $ ResponseError $ show $ getResponseStatus response
+    let unparsed = getResponseBody response
         parsed = decode unparsed :: Maybe JResponse
-        jresponse = fromJust parsed -- потенциальная ошибка не обрабатыватся
+    when (isNothing parsed) $ throwError $ NoParse $ show unparsed
+    let jresponse = fromJust parsed
 
     unless (null $ result jresponse) $ do
         let updts = tail $ result jresponse
@@ -54,9 +81,8 @@ sendLastMsgs = do
             msgText = text . message
             chatID = id . chat . message
         put lastUpdtID
-        lift $ zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)
+        lift $ lift $ zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)
     
-    --lift $ appendFile "./log/debug.log" iLog
     sendLastMsgs          
 
 standardRequest :: String
@@ -77,9 +103,13 @@ sendMessage chatID msgText = do
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
         endReq = setRequestBody (fromString bodyStr) reqWithHeaders
     httpLBS endReq
-    sysTime <- getSystemTime
-    let currTime = systemToUTCTime sysTime
+    currTime <- getCurrTime
     appendFile "./log/debug.log" $ "DEBUG entry at " ++ show currTime ++ "\n"
-                                    ++"\tA message was sent\n" 
-                                    ++ "\tTo: " ++ show chatID ++ "\n"
-                                    ++ "\tText: " ++ msgText ++ "\n"
+                                ++ "\tA message was sent\n" 
+                                ++ "\tTo: " ++ show chatID ++ "\n"
+                                ++ "\tText: " ++ msgText ++ "\n"
+
+getCurrTime :: IO UTCTime
+getCurrTime = do
+    sysTime <- getSystemTime
+    return $ systemToUTCTime sysTime
