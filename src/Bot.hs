@@ -44,3 +44,6 @@ instance FromJSON User
 
 instance ToJSON Chat
 instance FromJSON Chat
+
+emptyJResponse :: JResponse
+emptyJResponse = JResponse {ok = True, result = []}
