@@ -4,6 +4,8 @@ module Main where
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Char8 as BC
+import qualified Data.Text as T
+import           Data.Text.Encoding (encodeUtf8)
 import           Data.CaseInsensitive
 import           Network.HTTP.Conduit
 import           Network.HTTP.Simple
@@ -19,7 +21,6 @@ import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Trans.Class
 import           Prelude hiding (id)
-import           Data.String (fromString)
 
 main :: IO ()
 main = do
@@ -31,8 +32,6 @@ main = do
 {-To DO
 --where to keep a token
 --could not parse stickers
---response status Status {statusCode = 400, statusMessage = "Bad Request"} on emojis
-! String -> ByteString problem
 -}
 
 --                     lastUpdtID
@@ -77,14 +76,16 @@ handleResponse response = do
     when (isNothing parsed) $ throwError $ NoParse $ show unparsed
     return $ fromJust parsed
 
-sendMessage :: Integer -> String -> ExceptT BotError IO ()
+sendMessage :: Integer -> T.Text -> ExceptT BotError IO ()
 sendMessage chatID msgText = do
     let req = parseRequest_ $ "POST " ++ standardRequest ++  "sendMessage"
-        bodyStr = "{\"chat_id\": \"" ++ show chatID ++ "\", \"text\": \"" ++ msgText ++ "\"}"
+        chatIDText = T.pack $ show chatID
+        bodyText = "{\"chat_id\": \"" `T.append` chatIDText `T.append` "\", \"text\": \"" `T.append` msgText `T.append` "\"}"
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
-        endReq = setRequestBody (fromString bodyStr) reqWithHeaders
+        endReq = setRequestBodyLBS (LB.fromStrict $ encodeUtf8 bodyText) reqWithHeaders
     response <- liftIO $ httpLBS endReq
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
-    liftIO $ putStrLn msgText
     currTime <- liftIO getCurrTime
-    liftIO $ logDebug $ "\tA message was sent\n" ++ "\tTo: " ++ show chatID ++ "\n" ++ "\tText: " ++ msgText
+    liftIO $ logDebug $ "\tA message was sent\n" `T.append` "\tTo: " `T.append` chatIDText `T.append` "\n" `T.append` "\tText: " `T.append` msgText
+
+

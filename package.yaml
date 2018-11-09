@@ -28,6 +28,7 @@ dependencies:
 - transformers
 - case-insensitive
 - time
+- text
 
 library:
   source-dirs: src

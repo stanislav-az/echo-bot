@@ -3,6 +3,7 @@ module Bot where
 
 import GHC.Generics
 import Data.Aeson
+import Data.Text
 
 data JResponse = JResponse {
     ok :: Bool,
@@ -18,7 +19,7 @@ data Message = Message {
     message_id :: Integer,
     from :: User,
     chat :: Chat,
-    text :: String
+    text :: Text
 } deriving (Generic, Show)
 
 data User = User {
