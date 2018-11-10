@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 module Main where
 
 import qualified Data.ByteString as B
@@ -49,10 +50,10 @@ sendLastMsgs = do
                 [] -> offset
                 _  -> Just $ update_id $ last updts
             msgText = text . message
-            chatID = id . chat . message
+            chatID = (id :: Chat -> Integer) . chat . message
         put lastUpdtID
         liftIO $ runExceptT $ 
-            catchError (zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)) responseErrorHandler -- zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)
+            catchError (zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)) responseErrorHandler
         return ()
 
     sendLastMsgs        

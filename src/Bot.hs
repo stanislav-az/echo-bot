@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 module Bot where
 
 import GHC.Generics
@@ -23,7 +24,7 @@ data Message = Message {
 } deriving (Generic, Show)
 
 data User = User {
---    id :: Integer,
+    id :: Integer,
     first_name :: String
 } deriving (Generic, Show)
 
