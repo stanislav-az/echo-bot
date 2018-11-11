@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 module Bot where
 
 import GHC.Generics
@@ -18,14 +17,8 @@ data Update = Update {
 
 data Message = Message {
     message_id :: Integer,
-    from :: User,
     chat :: Chat,
     text :: Text
-} deriving (Generic, Show)
-
-data User = User {
-    id :: Integer,
-    first_name :: String
 } deriving (Generic, Show)
 
 data Chat = Chat {
@@ -40,9 +33,6 @@ instance FromJSON Update
 
 instance ToJSON Message
 instance FromJSON Message
-
-instance ToJSON User
-instance FromJSON User
 
 instance ToJSON Chat
 instance FromJSON Chat

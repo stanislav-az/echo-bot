@@ -7,6 +7,6 @@ import qualified Data.Text as T
 standardRequest :: IO String
 standardRequest = do
     config <- load [Required "./bot.config.local"]
-    tokenText <- require config ("token" :: T.Text)
+    tokenText <- require config ("token" :: T.Text) -- possibility of adding error management
     let tokenString = T.unpack tokenText
     return $ "https://api.telegram.org/bot" ++ tokenString ++ "/"  

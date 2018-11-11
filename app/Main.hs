@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 module Main where
 
 import qualified Data.ByteString as B
@@ -32,7 +31,7 @@ main = do
     evalStateT sendLastMsgs Nothing
 
 {-To DO
--- where to keep a token
+-- loading config on every request
 -- could not parse stickers
 -- how to make ./log directory and .log files on 'stack build' command
 -}
@@ -53,7 +52,7 @@ sendLastMsgs = do
                 [] -> offset
                 _  -> Just $ update_id $ last updts
             msgText = text . message
-            chatID = (id :: Chat -> Integer) . chat . message
+            chatID = id . chat . message
         put lastUpdtID
         liftIO $ runExceptT $ 
             catchError (zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)) responseErrorHandler
