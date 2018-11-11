@@ -17,7 +17,13 @@ parsingErrorHandler (NoParse body) = do
     liftIO $ logError $ 
         "\tCould not parse response body\n" ++ "\tResponse body was: " ++ body
     return emptyJResponse
+parsingErrorHandler (ResponseError status) = do
+    responseErrorHandler (ResponseError status)
+    return emptyJResponse
 
 responseErrorHandler :: BotError -> ExceptT BotError IO ()
 responseErrorHandler (ResponseError status) = liftIO $ logError $ 
     "\tResponse status was not ok\n" ++ "\tResponse status was: " ++ status
+responseErrorHandler (NoParse body) = do
+    parsingErrorHandler (NoParse body)
+    return ()

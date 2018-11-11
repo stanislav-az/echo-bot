@@ -14,6 +14,7 @@ import           Bot
 import           Errors
 import           Logging
 import           Helpers
+import           Config
 import           Data.Aeson
 import           Data.Maybe (fromJust, isNothing)
 import           Data.Either (either, fromLeft, fromRight)
@@ -31,15 +32,17 @@ main = do
     evalStateT sendLastMsgs Nothing
 
 {-To DO
---where to keep a token
---could not parse stickers
+-- where to keep a token
+-- could not parse stickers
+-- how to make ./log directory and .log files on 'stack build' command
 -}
 
 --                     lastUpdtID
 sendLastMsgs :: StateT (Maybe Integer) IO ()
 sendLastMsgs = do
     offset <- get
-    response <- liftIO $ httpLBS $ getUpdates offset
+    getUpdates <- liftIO $ makeGetUpdates offset
+    response <- liftIO $ httpLBS $ getUpdates
     checked <- liftIO $ runExceptT $ 
         catchError (handleResponse response) parsingErrorHandler
     let jresponse = either (const emptyJResponse) myID checked
@@ -57,17 +60,18 @@ sendLastMsgs = do
         return ()
 
     sendLastMsgs        
-    
-standardRequest :: String
-standardRequest = "https://api.telegram.org/bot631489276:AAGPK2n_xXE7_nB95uBkui2U6dMxcdbLMyM/"
 
-getUpdates :: Maybe Integer -> Request
-getUpdates Nothing = parseRequest_ $ "GET " ++ standardRequest ++ "getUpdates"
-getUpdates (Just offset) = setQueryString query req where
-    req = parseRequest_ $ "GET " ++ standardRequest ++ "getUpdates" 
-    query = [("offset", Just $ BC.pack $ show offset)
-            ,("timeout", Just "10")
-            ,("allowed_updates[]", Just "message")]
+makeGetUpdates :: Maybe Integer -> IO Request
+makeGetUpdates Nothing = do
+    sr <- standardRequest
+    return $ parseRequest_ $ "GET " ++ sr ++ "getUpdates"
+makeGetUpdates (Just offset) = do
+    sr <- standardRequest
+    let req = parseRequest_ $ "GET " ++ sr ++ "getUpdates" 
+        query = [("offset", Just $ BC.pack $ show offset)
+                ,("timeout", Just "10")
+                ,("allowed_updates[]", Just "message")]
+    return $ setQueryString query req
 
 handleResponse :: Response LB.ByteString -> ExceptT BotError IO JResponse
 handleResponse response = do
@@ -79,7 +83,8 @@ handleResponse response = do
 
 sendMessage :: Integer -> T.Text -> ExceptT BotError IO ()
 sendMessage chatID msgText = do
-    let req = parseRequest_ $ "POST " ++ standardRequest ++  "sendMessage"
+    sr <- liftIO standardRequest
+    let req = parseRequest_ $ "POST " ++ sr ++  "sendMessage"
         chatIDText = T.pack $ show chatID
         bodyText = "{\"chat_id\": \"" `T.append` chatIDText `T.append` "\", \"text\": \"" `T.append` msgText `T.append` "\"}"
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
