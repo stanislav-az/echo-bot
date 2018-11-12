@@ -25,3 +25,9 @@ defaultRepeat :: IO Int
 defaultRepeat = do
     config <- load [Required "./bot.config.local"]
     require config ("defaultRepeat" :: T.Text)
+
+getRepeat :: Integer -> IO Int
+getRepeat chatID = do
+    config <- load [Required "./repeat~"]
+    dRepeat <- defaultRepeat
+    lookupDefault dRepeat config ("i" `T.append` (T.pack $ show chatID))

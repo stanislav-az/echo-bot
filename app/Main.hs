@@ -28,6 +28,7 @@ main = do
     currTime <- getCurrTime
     appendFile "./log/debug.log" $ "LOG START at " ++ show currTime ++ "\n"
     appendFile "./log/error.log" $ "LOG START at " ++ show currTime ++ "\n"
+    writeFile "./repeat~" ""
     evalStateT sendLastMsgs Nothing
 
 {-To DO
@@ -107,9 +108,18 @@ handleMessage chatID "/help" = do
 handleMessage chatID "/repeat" = do
     rMsg <- liftIO repeatMsg
     sendMessage chatID rMsg
+handleMessage chatID "/1" = handleMessageHelper chatID 1
+handleMessage chatID "/2" = handleMessageHelper chatID 2
+handleMessage chatID "/3" = handleMessageHelper chatID 3
+handleMessage chatID "/4" = handleMessageHelper chatID 4
+handleMessage chatID "/5" = handleMessageHelper chatID 5
 handleMessage chatID msg = do
-    num <- liftIO getRepeat
+    num <- liftIO $ getRepeat chatID
     replicateM_ num $ sendMessage chatID msg
 
-getRepeat :: IO Int
-getRepeat = defaultRepeat
+handleMessageHelper :: Integer -> Int -> ExceptT BotError IO ()
+handleMessageHelper chatID r = do
+    liftIO $ appendFile "./repeat~" ("i" ++ show chatID ++ " = " ++ show r ++ "\n")
+    let chatIDText = T.pack $ show chatID
+        rText = T.pack $ show r
+    liftIO $ logDebug $ "\tNumber of message repeats changed\n" `T.append` "\tFor: " `T.append` chatIDText `T.append` "\n" `T.append` "\tTo: " `T.append` rText
