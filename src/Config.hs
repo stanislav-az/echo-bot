@@ -10,3 +10,18 @@ standardRequest = do
     tokenText <- require config ("token" :: T.Text) -- possibility of adding error management
     let tokenString = T.unpack tokenText
     return $ "https://api.telegram.org/bot" ++ tokenString ++ "/"  
+
+helpMsg :: IO T.Text
+helpMsg = do
+    config <- load [Required "./bot.config.local"]
+    require config ("helpMsg" :: T.Text)
+
+repeatMsg :: IO T.Text
+repeatMsg = do
+    config <- load [Required "./bot.config.local"]
+    require config ("repeatMsg" :: T.Text)
+
+defaultRepeat :: IO Int
+defaultRepeat = do
+    config <- load [Required "./bot.config.local"]
+    require config ("defaultRepeat" :: T.Text)

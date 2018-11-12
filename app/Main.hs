@@ -17,7 +17,7 @@ import           Config
 import           Data.Aeson
 import           Data.Maybe (fromJust, isNothing, catMaybes)
 import           Data.Either (either, fromLeft, fromRight)
-import           Control.Monad (unless, when, forM_, join)
+import           Control.Monad (unless, when, forM_, join, replicateM_)
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Trans.Class
@@ -31,7 +31,7 @@ main = do
     evalStateT sendLastMsgs Nothing
 
 {-To DO
--- loading config on every request
+-- load config on every request or put all parameters to StateT
 -- how to make ./log directory and .log files on 'stack build' command
 -}
 
@@ -55,7 +55,7 @@ sendLastMsgs = do
             post = envelop updts
         put lastUpdtID
         liftIO $ runExceptT $ 
-            catchError (forM_ post $ uncurry sendMessage) responseErrorHandler
+            catchError (forM_ post $ uncurry handleMessage) responseErrorHandler
         return ()
 
     sendLastMsgs        
@@ -100,4 +100,16 @@ sendMessage chatID msgText = do
     currTime <- liftIO getCurrTime
     liftIO $ logDebug $ "\tA message was sent\n" `T.append` "\tTo: " `T.append` chatIDText `T.append` "\n" `T.append` "\tText: " `T.append` msgText
 
+handleMessage :: Integer -> T.Text -> ExceptT BotError IO ()
+handleMessage chatID "/help" = do
+    hMsg <- liftIO helpMsg
+    sendMessage chatID hMsg
+handleMessage chatID "/repeat" = do
+    rMsg <- liftIO repeatMsg
+    sendMessage chatID rMsg
+handleMessage chatID msg = do
+    num <- liftIO getRepeat
+    replicateM_ num $ sendMessage chatID msg
 
+getRepeat :: IO Int
+getRepeat = defaultRepeat
