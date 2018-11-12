@@ -12,13 +12,13 @@ data JResponse = JResponse {
 
 data Update = Update {
     update_id :: Integer,
-    message :: Message 
+    message :: Maybe Message 
 } deriving (Generic, Show)
 
 data Message = Message {
     message_id :: Integer,
     chat :: Chat,
-    text :: Text
+    text :: Maybe Text
 } deriving (Generic, Show)
 
 data Chat = Chat {

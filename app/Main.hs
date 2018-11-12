@@ -15,9 +15,9 @@ import           Logging
 import           Helpers
 import           Config
 import           Data.Aeson
-import           Data.Maybe (fromJust, isNothing)
+import           Data.Maybe (fromJust, isNothing, catMaybes)
 import           Data.Either (either, fromLeft, fromRight)
-import           Control.Monad (unless, when, zipWithM)
+import           Control.Monad (unless, when, forM_, join)
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Trans.Class
@@ -32,7 +32,6 @@ main = do
 
 {-To DO
 -- loading config on every request
--- could not parse stickers
 -- how to make ./log directory and .log files on 'stack build' command
 -}
 
@@ -47,18 +46,26 @@ sendLastMsgs = do
     let jresponse = either (const emptyJResponse) myID checked
 
     unless (null $ result jresponse) $ do
-        let updts = tail $ result jresponse
+        let updts = case offset of
+                Nothing -> result jresponse
+                _ -> tail $ result jresponse
             lastUpdtID = case updts of
                 [] -> offset
                 _  -> Just $ update_id $ last updts
-            msgText = text . message
-            chatID = id . chat . message
+            post = envelop updts
         put lastUpdtID
         liftIO $ runExceptT $ 
-            catchError (zipWithM_ sendMessage (fmap chatID updts) (fmap msgText updts)) responseErrorHandler
+            catchError (forM_ post $ uncurry sendMessage) responseErrorHandler
         return ()
 
     sendLastMsgs        
+
+envelop :: [Update] -> [(Integer,T.Text)]
+envelop updts = catMaybes $ fmap (join . make) updts where
+    make updt = fmap f $ message updt
+    f msg = case text msg of 
+            Nothing -> Nothing
+            textMsg -> Just (id $ chat msg, fromJust $ text msg)
 
 makeGetUpdates :: Maybe Integer -> IO Request
 makeGetUpdates Nothing = do
