@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 module Main where
 
 import qualified Data.ByteString as B
@@ -22,25 +23,30 @@ import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Trans.Class
 import           Prelude hiding (id)
+import           System.Directory (createDirectoryIfMissing)
 
 main :: IO ()
 main = do
     currTime <- getCurrTime
+    createDirectoryIfMissing False "./log"
     appendFile "./log/debug.log" $ "LOG START at " ++ show currTime ++ "\n"
     appendFile "./log/error.log" $ "LOG START at " ++ show currTime ++ "\n"
     writeFile "./repeat~" ""
-    evalStateT sendLastMsgs Nothing
+    sr <- standardRequest
+    hMsg <- helpMsg
+    rMsg <- repeatMsg
+    r <- defaultRepeat
+    evalStateT sendLastMsgs (Nothing, sr, hMsg, rMsg, r)
 
 {-To DO
--- load config on every request or put all parameters to StateT
--- how to make ./log directory and .log files on 'stack build' command
+-- inline buttons HashMap
 -}
 
---                     lastUpdtID
-sendLastMsgs :: StateT (Maybe Integer) IO ()
+--                      lastUpdtID     Request Help    Repeat  r
+sendLastMsgs :: StateT (Maybe Integer, String, T.Text, T.Text, Int) IO ()
 sendLastMsgs = do
-    offset <- get
-    getUpdates <- liftIO $ makeGetUpdates offset
+    (offset, sr, hMsg, rMsg, r) <- get
+    getUpdates <- makeGetUpdates
     response <- liftIO $ httpLBS $ getUpdates
     checked <- liftIO $ runExceptT $ 
         catchError (handleResponse response) parsingErrorHandler
@@ -54,8 +60,8 @@ sendLastMsgs = do
                 [] -> offset
                 _  -> Just $ update_id $ last updts
             post = envelop updts
-        put lastUpdtID
-        liftIO $ runExceptT $ 
+        put (lastUpdtID, sr, hMsg, rMsg, r)
+        runExceptT $ 
             catchError (forM_ post $ uncurry handleMessage) responseErrorHandler
         return ()
 
@@ -63,22 +69,10 @@ sendLastMsgs = do
 
 envelop :: [Update] -> [(Integer,T.Text)]
 envelop updts = catMaybes $ fmap (join . make) updts where
-    make updt = fmap f $ message updt
-    f msg = case text msg of 
+    make updt = fmap f $ (message :: Update -> Maybe Message) updt
+    f msg = case (text :: Message -> Maybe T.Text) msg of 
             Nothing -> Nothing
-            textMsg -> Just (id $ chat msg, fromJust $ text msg)
-
-makeGetUpdates :: Maybe Integer -> IO Request
-makeGetUpdates Nothing = do
-    sr <- standardRequest
-    return $ parseRequest_ $ "GET " ++ sr ++ "getUpdates"
-makeGetUpdates (Just offset) = do
-    sr <- standardRequest
-    let req = parseRequest_ $ "GET " ++ sr ++ "getUpdates" 
-        query = [("offset", Just $ BC.pack $ show offset)
-                ,("timeout", Just "10")
-                ,("allowed_updates[]", Just "message")]
-    return $ setQueryString query req
+            textMsg -> Just ((id :: Chat -> Integer) $ chat msg, fromJust $ (text :: Message -> Maybe T.Text) msg)
 
 handleResponse :: Response LB.ByteString -> ExceptT BotError IO JResponse
 handleResponse response = do
@@ -88,38 +82,46 @@ handleResponse response = do
     when (isNothing parsed) $ throwError $ NoParse $ show unparsed
     return $ fromJust parsed
 
-sendMessage :: Integer -> T.Text -> ExceptT BotError IO ()
+makeGetUpdates :: StateT (Maybe Integer, String, T.Text, T.Text, Int) IO Request
+makeGetUpdates = do
+    (ofst, sr, _, _, _) <- get
+    case ofst of
+        Nothing -> return $ parseRequest_ $ "GET " ++ sr ++ "getUpdates"
+        (Just offset) -> do
+            let req = parseRequest_ $ "GET " ++ sr ++ "getUpdates" 
+                query = [("offset", Just $ BC.pack $ show offset)
+                        ,("timeout", Just "10")
+                        ,("allowed_updates[]", Just "message")]
+            return $ setQueryString query req
+
+handleMessage :: Integer -> T.Text -> ExceptT BotError (StateT (Maybe Integer, String, T.Text, T.Text, Int) IO) ()
+handleMessage chatID "/help" = do
+    (_, _, hMsg, _, _) <- get
+    sendMessage chatID hMsg
+{-handleMessage chatID "/repeat" = do
+    r <- liftIO $ getRepeat chatID
+    rMsg <- liftIO repeatMsg
+    let rText = T.pack $ show r
+        rnMsg = rMsg `T.append` "\n(current number is " `T.append` rText `T.append` ")" -- не кастомизировано через конфиг
+    sendMessage chatID rnMsg-}
+handleMessage chatID msg = do
+    (_, _, _, _, r) <- get
+    replicateM_ r $ sendMessage chatID msg
+
+sendMessage :: Integer -> T.Text -> ExceptT BotError (StateT (Maybe Integer, String, T.Text, T.Text, Int) IO) ()
 sendMessage chatID msgText = do
-    sr <- liftIO standardRequest
+    req <- lift $ makeSendMessage chatID msgText
+    let chatIDText = T.pack $ show chatID
+    response <- liftIO $ httpLBS req
+    unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
+    currTime <- liftIO getCurrTime
+    liftIO $ logDebug $ "\tA message was sent\n" `T.append` "\tTo: " `T.append` chatIDText `T.append` "\n" `T.append` "\tText: " `T.append` msgText
+       
+makeSendMessage :: Integer -> T.Text -> StateT (Maybe Integer, String, T.Text, T.Text, Int) IO Request
+makeSendMessage chatID msgText = do
+    (_, sr, _, _, _) <- get
     let req = parseRequest_ $ "POST " ++ sr ++  "sendMessage"
         chatIDText = T.pack $ show chatID
         bodyText = "{\"chat_id\": \"" `T.append` chatIDText `T.append` "\", \"text\": \"" `T.append` msgText `T.append` "\"}"
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
-        endReq = setRequestBodyLBS (LB.fromStrict $ encodeUtf8 bodyText) reqWithHeaders
-    response <- liftIO $ httpLBS endReq
-    unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
-    currTime <- liftIO getCurrTime
-    liftIO $ logDebug $ "\tA message was sent\n" `T.append` "\tTo: " `T.append` chatIDText `T.append` "\n" `T.append` "\tText: " `T.append` msgText
-
-handleMessage :: Integer -> T.Text -> ExceptT BotError IO ()
-handleMessage chatID "/help" = do
-    hMsg <- liftIO helpMsg
-    sendMessage chatID hMsg
-handleMessage chatID "/repeat" = do
-    rMsg <- liftIO repeatMsg
-    sendMessage chatID rMsg
-handleMessage chatID "/1" = handleMessageHelper chatID 1
-handleMessage chatID "/2" = handleMessageHelper chatID 2
-handleMessage chatID "/3" = handleMessageHelper chatID 3
-handleMessage chatID "/4" = handleMessageHelper chatID 4
-handleMessage chatID "/5" = handleMessageHelper chatID 5
-handleMessage chatID msg = do
-    num <- liftIO $ getRepeat chatID
-    replicateM_ num $ sendMessage chatID msg
-
-handleMessageHelper :: Integer -> Int -> ExceptT BotError IO ()
-handleMessageHelper chatID r = do
-    liftIO $ appendFile "./repeat~" ("i" ++ show chatID ++ " = " ++ show r ++ "\n")
-    let chatIDText = T.pack $ show chatID
-        rText = T.pack $ show r
-    liftIO $ logDebug $ "\tNumber of message repeats changed\n" `T.append` "\tFor: " `T.append` chatIDText `T.append` "\n" `T.append` "\tTo: " `T.append` rText
+    return $ setRequestBodyLBS (LB.fromStrict $ encodeUtf8 bodyText) reqWithHeaders

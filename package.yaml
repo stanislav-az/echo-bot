@@ -30,6 +30,7 @@ dependencies:
 - time
 - text
 - configurator
+- directory
 
 library:
   source-dirs: src
