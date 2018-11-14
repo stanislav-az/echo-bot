@@ -31,6 +31,7 @@ dependencies:
 - text
 - configurator
 - directory
+- unordered-containers
 
 library:
   source-dirs: src

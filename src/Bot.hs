@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Bot where
 
 import GHC.Generics
@@ -13,7 +14,8 @@ data JResponse = JResponse {
 
 data Update = Update {
     update_id :: Integer,
-    message :: Maybe Message 
+    message :: Maybe Message,
+    callback_query :: Maybe CallbackQuery
 } deriving (Generic, Show)
 
 data Message = Message {
@@ -29,7 +31,7 @@ data Chat = Chat {
 data RepeatMessageBody = RepeatMessageBody {
     chat_id :: Integer,
     text :: Text,
-    reply_markup :: Maybe InlineKeyboardMarkup
+    reply_markup :: InlineKeyboardMarkup
 } deriving (Generic, Show)
 
 data InlineKeyboardMarkup = InlineKeyboardMarkup {
@@ -38,12 +40,13 @@ data InlineKeyboardMarkup = InlineKeyboardMarkup {
 
 data InlineKeyboardButton = InlineKeyboardButton {
     text :: Text,
-    callback_data :: CallbackQuery
+    callback_data :: String
 } deriving (Generic, Show)
 
 data CallbackQuery = CallbackQuery {
     id :: String,
-    message :: Maybe Message
+    message :: Maybe Message,
+    callbackData :: Maybe String
 } deriving (Generic, Show)
 
 instance ToJSON JResponse
@@ -68,7 +71,19 @@ instance ToJSON InlineKeyboardButton
 instance FromJSON InlineKeyboardButton
 
 instance ToJSON CallbackQuery
-instance FromJSON CallbackQuery
+instance FromJSON CallbackQuery where
+    parseJSON = withObject "CallbackQuery" $ \v -> CallbackQuery
+        <$> v .: "id"
+        <*> v .: "message"
+        <*> v .: "data"
 
 emptyJResponse :: JResponse
 emptyJResponse = JResponse {ok = True, result = []}
+
+keyboard :: InlineKeyboardMarkup
+keyboard = InlineKeyboardMarkup {
+    inline_keyboard = [button <$> [1..5]] } where
+        button i = InlineKeyboardButton {
+            text = pack $ show i,
+            callback_data = show i
+        }

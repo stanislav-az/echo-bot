@@ -6,6 +6,7 @@ import Control.Monad.State
 import Logging
 import Bot
 import Data.Text
+import Data.HashMap.Strict
 
 data BotError = NoParse ResponseBody | ResponseError ResponseStatus
     deriving Show
@@ -21,7 +22,8 @@ parsingErrorHandler be@(ResponseError status) = do
     liftIO $ responseError be
     return emptyJResponse
 
-responseErrorHandler :: BotError -> ExceptT BotError (StateT (Maybe Integer, String, Text, Text, Int) IO) ()
+responseErrorHandler :: BotError -> 
+    ExceptT BotError (StateT (Maybe Integer, String, Text, Text, Int, HashMap Integer Int) IO) ()
 responseErrorHandler be@(ResponseError status) = liftIO $ responseError be
 responseErrorHandler be@(NoParse body) = liftIO $ parsingError be
 
