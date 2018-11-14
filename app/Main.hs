@@ -16,7 +16,7 @@ import           Logging
 import           Helpers
 import           Config
 import           Data.Aeson
-import           Data.Maybe (fromJust, isNothing, catMaybes)
+import           Data.Maybe (fromJust, isNothing, catMaybes, maybeToList)
 import           Data.Either (either, fromLeft, fromRight)
 import           Control.Monad (unless, when, forM_, join, replicateM_)
 import           Control.Monad.State
@@ -24,7 +24,7 @@ import           Control.Monad.Except
 import           Control.Monad.Trans.Class
 import           Prelude hiding (id)
 import           System.Directory (createDirectoryIfMissing)
-import           Data.HashMap.Strict hiding (null, filter)
+import           Data.HashMap.Strict hiding (null, filter, foldr)
 
 main :: IO ()
 main = do
@@ -42,8 +42,6 @@ main = do
 {-To DO
 -- debug/error configuration
 -- keyboard forming on every makeCallbackQuery call
--- unite makeGetUpdates for messages and callbacks
--- channel error "Handling Update with no callback data" to log
 -- add error and log management to handleCallback (use liftMaybe)
 -}
 
@@ -51,60 +49,38 @@ main = do
 sendLastMsgs :: StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Integer Int) IO ()
 sendLastMsgs = do
     (offset, _, _, _, _, _) <- get
-    getUpdates <- makeGetUpdates False
-    getCallback <- makeGetUpdates True
+    getUpdates <- makeGetUpdates
     response <- liftIO $ httpLBS $ getUpdates
-    responseCB <- liftIO $ httpLBS $ getCallback
     checked <- liftIO $ runExceptT $ 
         catchError (handleResponse response) parsingErrorHandler
-    checkedCB <- liftIO $ runExceptT $ 
-        catchError (handleResponse response) parsingErrorHandler
-    let getJresponse = either (const emptyJResponse) myID
-        jresponse = getJresponse checked
-        jresponseCB = getJresponse checkedCB
-        callbacks = findQueries $ result jresponseCB
-        lastUpdtID = findLastUpdtID (result jresponse) (result jresponseCB) offset
-
-    unless (null callbacks) $ do
-        let cbs = case offset of 
-                Nothing -> callbacks
-                _ -> tail callbacks
-        runExceptT $ 
-            catchError (forM_ cbs handleCallback) responseErrorHandler
-        return ()
-
-    unless (null $ result jresponse) $ do
-        let updts = case offset of
-                Nothing -> result jresponse
-                _ -> tail $ result jresponse
-            post = envelop updts
-        runExceptT $ 
-            catchError (forM_ post $ uncurry handleMessage) responseErrorHandler
-        return ()
+    let jresponse = either (const emptyJResponse) myID checked
+        mcs = sortJResponse jresponse offset
+        messages = fst mcs
+        callbacks = snd mcs
+        lastUpdtID = findLastUpdtID (result jresponse) offset
+    
+    runExceptT $ 
+        catchError (forM_ callbacks handleCallback) responseErrorHandler
+    runExceptT $ 
+        catchError (forM_ messages $ uncurry handleMessage) responseErrorHandler
     
     (_, sr, hMsg, rMsg, r, chatsRepeat) <- get    
     put (lastUpdtID, sr, hMsg, rMsg, r, chatsRepeat)
     sendLastMsgs        
 
-findLastUpdtID :: [Update] -> [Update] -> Maybe Integer -> Maybe Integer
-findLastUpdtID [] [] offset = offset
-findLastUpdtID [] u _ = Just $ update_id $ last u
-findLastUpdtID u [] _ = Just $ update_id $ last u
-findLastUpdtID x y _ = Just $ max (f x) (f y) where
-    f = update_id . last
+sortJResponse :: JResponse -> Maybe Integer -> ([(Integer,T.Text)], [CallbackQuery])
+sortJResponse jresponse offset = foldr go ([],[]) (seeIfAreOld offset $ result jresponse) where
+    seeIfAreOld Nothing xs = xs
+    seeIfAreOld _ [] = []
+    seeIfAreOld _ xs = tail xs
+    go (Update _ a b) (msgs,cbs) = (getMsg a ++ msgs, maybeToList b ++ cbs)
+    getMsg Nothing = []
+    getMsg (Just (Message _ _ Nothing)) = []
+    getMsg (Just (Message _ (Chat chatID) (Just txt))) = [(chatID, txt)]
 
-envelop :: [Update] -> [(Integer,T.Text)]
-envelop updts = catMaybes $ fmap (join . make) updts where
-    make updt = fmap f $ (message :: Update -> Maybe Message) updt
-    f msg = case (text :: Message -> Maybe T.Text) msg of 
-            Nothing -> Nothing
-            textMsg -> Just ((id :: Chat -> Integer) $ chat msg, fromJust $ (text :: Message -> Maybe T.Text) msg)
-
-findQueries :: [Update] -> [Update]
-findQueries = filter go where
-    go updt = case callback_query updt of
-        Nothing -> False
-        _ -> True
+findLastUpdtID :: [Update] -> Maybe Integer -> Maybe Integer
+findLastUpdtID [] offset = offset
+findLastUpdtID us _ = Just $ update_id $ last us
 
 handleResponse :: Response LB.ByteString -> ExceptT BotError IO JResponse
 handleResponse response = do
@@ -114,9 +90,8 @@ handleResponse response = do
     when (isNothing parsed) $ throwError $ NoParse $ show unparsed
     return $ fromJust parsed
 
-makeGetUpdates :: Bool -> 
-    StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Integer Int) IO Request
-makeGetUpdates isCallback = do
+makeGetUpdates :: StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Integer Int) IO Request
+makeGetUpdates = do
     (ofst, sr, _, _, _, _) <- get
     case ofst of
         Nothing -> return $ parseRequest_ $ "GET " ++ sr ++ "getUpdates"
@@ -124,13 +99,12 @@ makeGetUpdates isCallback = do
             let req = parseRequest_ $ "GET " ++ sr ++ "getUpdates" 
                 query = [("offset", Just $ BC.pack $ show offset)
                         ,("timeout", Just "10")
-                        ,("allowed_updates[]", Just (if isCallback then "callback_query" else "message"))]
+                        ,("allowed_updates[]", Just "callback_query,message")]
             return $ setQueryString query req
 
-handleCallback :: Update -> 
+handleCallback :: CallbackQuery -> 
     ExceptT BotError (StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Integer Int) IO) ()
-handleCallback (Update _ _ Nothing) = error "Handling Update with no callback data"
-handleCallback (Update _ _ (Just cq)) = do
+handleCallback cq = do
     (offset, sr, hMsg, rMsg, r, chatsRepeat) <- get 
     let req = parseRequest_ $ "POST " ++ sr ++  "answerCallbackQuery"
         queryIDText = T.pack $ (id :: CallbackQuery -> String) cq
