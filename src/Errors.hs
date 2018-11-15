@@ -27,7 +27,7 @@ parsingErrorHandler (BadCallbackData badData) = do
     return emptyJResponse
 
 responseErrorHandler :: BotError -> 
-    ExceptT BotError (StateT (Maybe Integer, String, Text, Text, Int, HashMap Integer Int) IO) ()
+    ExceptT BotError (StateT (Maybe Integer, String, Text, Text, Int, HashMap Integer Int, Bool) IO) ()
 responseErrorHandler (ResponseError status) = liftIO $ responseError status
 responseErrorHandler (NoParse body) = liftIO $ parsingError body
 responseErrorHandler (BadCallbackData badData) = liftIO $ badCallbackError badData

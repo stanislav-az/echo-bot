@@ -24,3 +24,8 @@ defaultRepeat :: IO Int
 defaultRepeat = do
     config <- load [Required "./bot.config.local"]
     require config "defaultRepeat"
+
+debugLogging :: IO Bool
+debugLogging = do
+    config <- load [Required "./bot.config.local"]
+    require config "debugLogging" 
