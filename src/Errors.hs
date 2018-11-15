@@ -8,27 +8,35 @@ import Bot
 import Data.Text
 import Data.HashMap.Strict
 
-data BotError = NoParse ResponseBody | ResponseError ResponseStatus
+data BotError = NoParse ResponseBody | BadCallbackData CallbackData | ResponseError ResponseStatus 
     deriving Show
 
 type ResponseStatus = String
 type ResponseBody = String
+type CallbackData = String
 
 parsingErrorHandler :: BotError -> ExceptT BotError IO JResponse
-parsingErrorHandler be@(NoParse body) = do 
-    liftIO $ parsingError be
+parsingErrorHandler (NoParse body) = do 
+    liftIO $ parsingError body
     return emptyJResponse
-parsingErrorHandler be@(ResponseError status) = do
-    liftIO $ responseError be
+parsingErrorHandler (ResponseError status) = do
+    liftIO $ responseError status
+    return emptyJResponse
+parsingErrorHandler (BadCallbackData badData) = do
+    liftIO $ badCallbackError badData
     return emptyJResponse
 
 responseErrorHandler :: BotError -> 
     ExceptT BotError (StateT (Maybe Integer, String, Text, Text, Int, HashMap Integer Int) IO) ()
-responseErrorHandler be@(ResponseError status) = liftIO $ responseError be
-responseErrorHandler be@(NoParse body) = liftIO $ parsingError be
+responseErrorHandler (ResponseError status) = liftIO $ responseError status
+responseErrorHandler (NoParse body) = liftIO $ parsingError body
+responseErrorHandler (BadCallbackData badData) = liftIO $ badCallbackError badData
 
-parsingError :: BotError -> IO ()
-parsingError (NoParse body) = logError $ "\tCould not parse response body\n" ++ "\tResponse body was: " ++ body
+parsingError :: String -> IO ()
+parsingError body = logError $ "\tCould not parse response body\n" ++ "\tResponse body was: " ++ body
 
-responseError :: BotError -> IO ()
-responseError (ResponseError status) = logError $ "\tResponse status was not ok\n" ++ "\tResponse status was: " ++ status
+responseError :: String -> IO ()
+responseError status = logError $ "\tResponse status was not ok\n" ++ "\tResponse status was: " ++ status
+
+badCallbackError :: String -> IO ()
+badCallbackError badData = logError $ "\tReceived bad callback data\n" ++ "\tIt was: " ++ badData

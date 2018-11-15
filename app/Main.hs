@@ -8,6 +8,7 @@ import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T
 import           Data.Text.Encoding (encodeUtf8)
 import           Data.CaseInsensitive
+import           Data.String
 import           Network.HTTP.Conduit
 import           Network.HTTP.Simple
 import           Bot
@@ -25,6 +26,7 @@ import           Control.Monad.Trans.Class
 import           Prelude hiding (id)
 import           System.Directory (createDirectoryIfMissing)
 import           Data.HashMap.Strict hiding (null, filter, foldr)
+import           Text.Read (readMaybe)
 
 main :: IO ()
 main = do
@@ -42,7 +44,6 @@ main = do
 {-To DO
 -- debug/error configuration
 -- keyboard forming on every makeCallbackQuery call
--- add error and log management to handleCallback (use liftMaybe)
 -}
 
 --                      lastUpdtID     Request Help    Repeat  r    RepeatMap
@@ -68,15 +69,18 @@ sendLastMsgs = do
     put (lastUpdtID, sr, hMsg, rMsg, r, chatsRepeat)
     sendLastMsgs        
 
-sortJResponse :: JResponse -> Maybe Integer -> ([(Integer,T.Text)], [CallbackQuery])
+--                                                chatID   msgText     queryID chatID   button
+sortJResponse :: JResponse -> Maybe Integer -> ([(Integer, T.Text)], [(String, Integer, String)])
 sortJResponse jresponse offset = foldr go ([],[]) (seeIfAreOld offset $ result jresponse) where
     seeIfAreOld Nothing xs = xs
     seeIfAreOld _ [] = []
     seeIfAreOld _ xs = tail xs
-    go (Update _ a b) (msgs,cbs) = (getMsg a ++ msgs, maybeToList b ++ cbs)
-    getMsg Nothing = []
-    getMsg (Just (Message _ _ Nothing)) = []
+    go (Update _ a b) (msgs,cbs) = (getMsg a ++ msgs, getCb b ++ cbs)
     getMsg (Just (Message _ (Chat chatID) (Just txt))) = [(chatID, txt)]
+    getMsg _ = []
+    getCb (Just (CallbackQuery queryID (Just msg) (Just btnPressed))) = 
+        [(queryID, (id :: Chat -> Integer) $ (chat :: Message -> Chat) msg, btnPressed)]
+    getCb _ = []
 
 findLastUpdtID :: [Update] -> Maybe Integer -> Maybe Integer
 findLastUpdtID [] offset = offset
@@ -102,23 +106,26 @@ makeGetUpdates = do
                         ,("allowed_updates[]", Just "callback_query,message")]
             return $ setQueryString query req
 
-handleCallback :: CallbackQuery -> 
+handleCallback :: (String, Integer, String) -> 
     ExceptT BotError (StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Integer Int) IO) ()
-handleCallback cq = do
+handleCallback (queryID, chatID, btnPressed) = do
     (offset, sr, hMsg, rMsg, r, chatsRepeat) <- get 
-    let req = parseRequest_ $ "POST " ++ sr ++  "answerCallbackQuery"
-        queryIDText = T.pack $ (id :: CallbackQuery -> String) cq
-        msgText = "You've choosen to repeat messages " `T.append` (T.pack $ fromJust $ callbackData cq) `T.append` " times"
-        bodyText = "{\"callback_query_id\": \"" `T.append` queryIDText `T.append` 
-                   "\", \"text\": \"" `T.append` msgText `T.append` "\"}"
+    let btn = readMaybe btnPressed :: Maybe Int
+    when (isNothing btn) $ throwError $ BadCallbackData btnPressed
+    let chatsRepeat' = insert chatID (fromJust btn) chatsRepeat
+        req = parseRequest_ $ "POST " ++ sr ++  "answerCallbackQuery"
+        queryIDLBS = fromString queryID
+        btnPressedLBS = fromString btnPressed
+        msgLBS = "You've choosen to repeat messages " `LB.append` btnPressedLBS `LB.append` " times"
+        bodyLBS = "{\"callback_query_id\": \"" `LB.append` queryIDLBS `LB.append` 
+                   "\", \"text\": \"" `LB.append` msgLBS `LB.append` "\"}"
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
-        endReq = setRequestBodyLBS (LB.fromStrict $ encodeUtf8 bodyText) reqWithHeaders
+        endReq = setRequestBodyLBS bodyLBS reqWithHeaders
     response <- liftIO $ httpLBS endReq
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
-    let chatID = (id :: Chat -> Integer) $ (chat :: Message -> Chat) $ 
-            fromJust $ (message :: CallbackQuery -> Maybe Message) cq
-        btn = read (fromJust $ callbackData cq) :: Int
-        chatsRepeat' = insert chatID btn chatsRepeat
+    currTime <- liftIO getCurrTime
+    liftIO $ logDebug $ "\tA number of repeats was changed\n" `T.append` 
+        "\tFor: " `T.append` (T.pack $ show chatID) `T.append` "\n" `T.append` "\tTo: " `T.append` (T.pack btnPressed)
     put (offset, sr, hMsg, rMsg, r, chatsRepeat')
     
 handleMessage :: Integer -> T.Text -> 
