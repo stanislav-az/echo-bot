@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-module WebIO where
+module Telegram.WebIO (runTelegramBot) where
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
@@ -19,10 +19,62 @@ import           Control.Monad.State
 import           Control.Monad.Except
 import           Data.HashMap.Strict hiding (null, filter, foldr)
 import           Text.Read (readMaybe)
-import           Bot
+import           Telegram.Bot
 import           Errors
 import           Logging
 import           Helpers
+import           Bot
+import           Config
+import           Prelude hiding (id)
+
+runTelegramBot :: IO ()
+runTelegramBot = do
+    sr <- tStandardRequest
+    hMsg <- helpMsg
+    rMsg <- repeatMsg
+    r <- defaultRepeat
+    dlog <- debugLogging
+    evalStateT sendLastMsgs (Nothing, sr, hMsg, rMsg, r, empty, dlog)
+
+--                      lastUpdtID     request help    repeat  r    repeatMap            dlog
+sendLastMsgs :: StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Integer Int, Bool) IO ()
+sendLastMsgs = do
+    (offset, _, _, _, _, _, _) <- get
+    getUpdates <- makeGetUpdates
+    response <- liftIO $ httpLBS $ getUpdates
+    checked <- liftIO $ runExceptT $ 
+        catchError (handleResponse response) tParsingErrorHandler
+    let jresponse = either (const emptyJResponse) myID checked
+        mcs = sortJResponse jresponse offset
+        messages = fst mcs
+        callbacks = snd mcs
+        lastUpdtID = findLastUpdtID (result jresponse) offset
+    
+    runExceptT $ 
+        catchError (forM_ callbacks handleCallback) tResponseErrorHandler
+    runExceptT $ 
+        catchError (forM_ messages $ uncurry handleMessage) tResponseErrorHandler
+    
+    (_, sr, hMsg, rMsg, r, chatsRepeat, dlog) <- get    
+    put (lastUpdtID, sr, hMsg, rMsg, r, chatsRepeat, dlog)
+    sendLastMsgs        
+
+--                                                chatID   msgText     queryID chatID   button
+sortJResponse :: JResponse -> Maybe Integer -> ([(Integer, T.Text)], [(String, Integer, String)])
+sortJResponse jresponse offset = foldr go ([],[]) (seeIfAreOld offset $ result jresponse) where
+    seeIfAreOld Nothing xs = xs
+    seeIfAreOld _ [] = []
+    seeIfAreOld _ xs = tail xs
+    go (Update _ a b) (msgs,cbs) = (getMsg a ++ msgs, getCb b ++ cbs)
+    getMsg (Just (Message _ (Chat chatID) (Just txt))) = [(chatID, txt)]
+    getMsg _ = []
+    getCb (Just (CallbackQuery queryID (Just msg) (Just btnPressed))) = 
+        [(queryID, (id :: Chat -> Integer) $ (chat :: Message -> Chat) msg, btnPressed)]
+    getCb _ = []
+
+findLastUpdtID :: [Update] -> Maybe Integer -> Maybe Integer
+findLastUpdtID [] offset = offset
+findLastUpdtID us _ = Just $ update_id $ last us
 
 handleResponse :: Response LB.ByteString -> ExceptT BotError IO JResponse
 handleResponse response = do
@@ -62,7 +114,7 @@ handleCallback (queryID, chatID, btnPressed) = do
     response <- liftIO $ httpLBS endReq
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
     currTime <- liftIO getCurrTime
-    when dlog $ liftIO $ logDebug $ "\tA number of repeats was changed\n" `T.append` 
+    when dlog $ liftIO $ (logDebug Telegram) $ "\tA number of repeats was changed\n" `T.append` 
         "\tFor: " `T.append` (T.pack $ show chatID) `T.append` "\n" `T.append` "\tTo: " `T.append` (T.pack btnPressed)
     put (offset, sr, hMsg, rMsg, r, chatsRepeat', dlog)
     
@@ -94,7 +146,7 @@ sendMessage chatID msgText hasKeyboard = do
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
     currTime <- liftIO getCurrTime
     when dlog $ liftIO $ 
-        logDebug $ "\tA message was sent\n" `T.append` "\tTo: " `T.append` chatIDText `T.append` 
+        (logDebug Telegram) $ "\tA message was sent\n" `T.append` "\tTo: " `T.append` chatIDText `T.append` 
             "\n" `T.append` "\tText: " `T.append` msgText
        
 makeSendMessage :: Integer -> T.Text -> 
