@@ -5,6 +5,7 @@ import Control.Monad.Except
 import Control.Monad.State
 import Logging
 import Telegram.Bot
+import Slack.Bot
 import Data.Text
 import Data.HashMap.Strict
 import Bot
@@ -41,3 +42,14 @@ responseError bot status = (logError bot) $ "\tResponse status was not ok\n" ++ 
 
 badCallbackError :: Bot -> String -> IO ()
 badCallbackError bot badData = (logError bot) $ "\tReceived bad callback data\n" ++ "\tIt was: " ++ badData
+
+sParsingErrorHandler :: BotError -> ExceptT BotError IO SJResponse
+sParsingErrorHandler (NoParse body) = do 
+    liftIO $ parsingError Slack body
+    return emptySJResponse
+sParsingErrorHandler (ResponseError status) = do
+    liftIO $ responseError Slack status
+    return emptySJResponse
+sParsingErrorHandler (BadCallbackData badData) = do
+    liftIO $ badCallbackError Slack badData
+    return emptySJResponse

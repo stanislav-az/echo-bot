@@ -7,8 +7,15 @@ import qualified Data.Text as T
 tStandardRequest :: IO String
 tStandardRequest = do
     config <- load [Required "./bot.config.local"]
-    tokenText <- require config "token" -- possibility of adding error management
-    return $ "https://api.telegram.org/bot" ++ tokenText ++ "/"  
+    token <- require config "telegramToken" -- possibility of adding error management
+    return $ "https://api.telegram.org/bot" ++ token ++ "/"  
+
+slackConfig :: IO (String, String)
+slackConfig = do
+    config <- load [Required "./bot.config.local"]
+    token <- require config "slackToken"
+    channel <- require config "slackChannel"
+    return (token, channel)
 
 helpMsg :: IO T.Text
 helpMsg = do
@@ -29,3 +36,5 @@ debugLogging :: IO Bool
 debugLogging = do
     config <- load [Required "./bot.config.local"]
     require config "debugLogging" 
+
+    

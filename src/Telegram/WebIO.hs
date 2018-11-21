@@ -2,16 +2,15 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 module Telegram.WebIO (runTelegramBot) where
 
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString       as B
+import qualified Data.ByteString.Lazy  as LB
 import qualified Data.ByteString.Char8 as BC
-import qualified Data.Text as T
+import qualified Data.Text             as T
 import           Data.Text.Encoding (encodeUtf8)
 import           Data.CaseInsensitive
 import           Data.String
 import           Network.HTTP.Simple
 import           Network.HTTP.Conduit
-import           Data.String
 import           Data.Aeson
 import           Data.Maybe
 import           Control.Monad (unless, when, forM_, replicateM_)
@@ -41,7 +40,7 @@ sendLastMsgs :: StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Inte
 sendLastMsgs = do
     (offset, _, _, _, _, _, _) <- get
     getUpdates <- makeGetUpdates
-    response <- liftIO $ httpLBS $ getUpdates
+    response <- httpLBS $ getUpdates
     checked <- liftIO $ runExceptT $ 
         catchError (handleResponse response) tParsingErrorHandler
     let jresponse = either (const emptyJResponse) myID checked
@@ -111,7 +110,7 @@ handleCallback (queryID, chatID, btnPressed) = do
                    "\", \"text\": \"" `LB.append` msgLBS `LB.append` "\"}"
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
         endReq = setRequestBodyLBS bodyLBS reqWithHeaders
-    response <- liftIO $ httpLBS endReq
+    response <- httpLBS endReq
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
     currTime <- liftIO getCurrTime
     when dlog $ liftIO $ (logDebug Telegram) $ "\tA number of repeats was changed\n" `T.append` 
@@ -142,7 +141,7 @@ sendMessage chatID msgText hasKeyboard = do
            then lift $ makeCallbackQuery chatID msgText
            else lift $ makeSendMessage chatID msgText
     let chatIDText = T.pack $ show chatID
-    response <- liftIO $ httpLBS req
+    response <- httpLBS req
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
     currTime <- liftIO getCurrTime
     when dlog $ liftIO $ 

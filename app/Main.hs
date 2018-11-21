@@ -1,7 +1,8 @@
 module Main where
 
-import           Telegram.WebIO
-import           Logging
+import Telegram.WebIO
+import Slack.WebIO
+import Logging
 
 main :: IO ()
 main = do
