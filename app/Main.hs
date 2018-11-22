@@ -10,7 +10,6 @@ main = do
     runTelegramBot
 
 {-To DO
--- keyboard forming on every makeCallbackQuery call
 -- unit-tests, readme
 -}
 

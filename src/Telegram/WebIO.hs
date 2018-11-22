@@ -26,6 +26,10 @@ import           Bot
 import           Config
 import           Prelude hiding (id)
 
+{-To DO
+-- keyboard forming on every makeCallbackQuery call
+-}
+
 runTelegramBot :: IO ()
 runTelegramBot = do
     sr <- tStandardRequest

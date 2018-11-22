@@ -13,13 +13,13 @@ logDebug bot msg = do
     currTime <- getCurrTime
     let currTimeText = T.pack $ show currTime
         botText = T.pack $ show bot
-        log = botText `T.append` "DEBUG entry at " `T.append` currTimeText  `T.append` "\n" `T.append` msg  `T.append` "\n" 
+        log = botText `T.append` " DEBUG entry at " `T.append` currTimeText  `T.append` "\n" `T.append` msg  `T.append` "\n" 
     TIO.appendFile "./log/debug.log" log
 
 logError :: Bot -> String -> IO ()
 logError bot msg = do
     currTime <- getCurrTime
-    let log = (show bot) ++ "ERROR entry at " ++ (show currTime)  ++ "\n" ++ msg  ++ "\n"
+    let log = (show bot) ++ " ERROR entry at " ++ (show currTime)  ++ "\n" ++ msg  ++ "\n"
     appendFile "./log/error.log" log
 
 logStart :: IO ()
