@@ -18,9 +18,10 @@ import           Control.Monad.State
 import           Control.Monad.Except
 import           Data.Maybe
 import           Data.Aeson
+import           Control.Concurrent (threadDelay)
 
 {-To DO
--- /command problem
+-- buttons 
 -}
 
 runSlackBot :: IO ()
@@ -51,13 +52,14 @@ goSlackBot = do
 
     (_, token, channel, hMsg, rMsg, r, dlog) <- get
     put (lastTS, token, channel, hMsg, rMsg, r, dlog)
+    liftIO $ threadDelay 1000000
     goSlackBot
 
 sortSJResponse :: [SMessage] -> [T.Text]
 sortSJResponse = foldl f [] where
     f txts sm = case user sm of
         Nothing -> txts
-        _ -> text sm : txts
+        _ -> ((text :: SMessage -> T.Text) sm) : txts
 
 makeConHistory :: StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool) IO Request
 makeConHistory = do
@@ -90,10 +92,10 @@ hadleResponse response = do
 
 handleMessage :: T.Text -> 
     ExceptT BotError (StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool) IO) ()
-handleMessage "/help" = do
+handleMessage "_help" = do
     (_, _, _, hMsg, _, _, _) <- get
     postMessage hMsg
-handleMessage "/repeat" = do
+handleMessage "_repeat" = do
     (_, _, _, _, rMsg, r, _) <- get
     let rText = T.pack $ show r
         rnMsg = rMsg `T.append` rText
