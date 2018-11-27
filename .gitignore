@@ -1,6 +1,7 @@
 .stack-work/
 saz-echo-bot.cabal
 *.local
+*.bak
 
 # Compiled source #
 ###################

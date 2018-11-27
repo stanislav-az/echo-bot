@@ -7,13 +7,19 @@ import Data.Text
 
 data SJResponse = SJResponse {
     ok :: Bool,
-    messages :: [SMessage]
+    messages :: Maybe [SMessage],
+    message :: Maybe SMessage
 } deriving (Generic, Show)
 
 data SMessage = SMessage {
     user :: Maybe String,
     text :: Text,
-    ts :: String
+    ts :: String,
+    reactions :: Maybe [SReaction]
+} deriving (Generic, Show)
+
+data SReaction = SReaction {
+    name :: String
 } deriving (Generic, Show)
 
 instance ToJSON SJResponse
@@ -22,5 +28,8 @@ instance FromJSON SJResponse
 instance ToJSON SMessage
 instance FromJSON SMessage
 
+instance ToJSON SReaction
+instance FromJSON SReaction
+
 emptySJResponse :: SJResponse
-emptySJResponse = SJResponse {ok = True, messages = []}
+emptySJResponse = SJResponse {ok = True, messages = Just [], message = Nothing}

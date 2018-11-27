@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Slack.WebIO (runSlackBot) where
+module Slack.WebIO (runSlackBot, test) where
 
 import Config
 import Errors
@@ -21,7 +21,7 @@ import           Data.Aeson
 import           Control.Concurrent (threadDelay)
 
 {-To DO
--- buttons 
+
 -}
 
 runSlackBot :: IO ()
@@ -31,39 +31,46 @@ runSlackBot = do
     rMsg <- repeatMsg
     r <- defaultRepeat
     dlog <- debugLogging
-    evalStateT goSlackBot (Nothing, token, channel, hMsg, rMsg, r, dlog)
+    evalStateT goSlackBot (Nothing, token, channel, hMsg, rMsg, r, dlog, Nothing)
     
---                    timestamp     token   channel hMsg    rMsg    r    dlog
-goSlackBot :: StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool) IO ()
+--                    timestamp     token   channel hMsg    rMsg    r    dlog  repeatTS
+goSlackBot :: StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool, Maybe String) IO ()
 goSlackBot = do
-    (timestamp, _, _, _, _, _, _) <- get
+    (timestamp, _, _, _, _, _, _, _) <- get
     conHistory <- makeConHistory
     response <- httpLBS conHistory
+    
     checked <- liftIO $ runExceptT $ 
         catchError (hadleResponse response) sParsingErrorHandler
     let sJResponse = either (const emptySJResponse) id checked
         msgs = sortSJResponse $ messages sJResponse
-        lastTS = case messages sJResponse of
-            [] -> timestamp
-            ms -> Just $ ts $ head ms
-    --liftIO $ print sJResponse
+        lastTS = findLastTS sJResponse timestamp
+    
+    runExceptT $
+        catchError handleRepeatTS sResponseErrorHandler
     runExceptT $
         catchError (forM_ msgs handleMessage) sResponseErrorHandler
 
-    (_, token, channel, hMsg, rMsg, r, dlog) <- get
-    put (lastTS, token, channel, hMsg, rMsg, r, dlog)
+    (_, token, channel, hMsg, rMsg, r, dlog, repeatTS) <- get
+    put (lastTS, token, channel, hMsg, rMsg, r, dlog, repeatTS)
     liftIO $ threadDelay 1000000
     goSlackBot
 
-sortSJResponse :: [SMessage] -> [T.Text]
-sortSJResponse = foldl f [] where
+sortSJResponse :: Maybe [SMessage] -> [T.Text]
+sortSJResponse = maybe [] (foldl f []) where
     f txts sm = case user sm of
         Nothing -> txts
         _ -> ((text :: SMessage -> T.Text) sm) : txts
 
-makeConHistory :: StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool) IO Request
+findLastTS :: SJResponse -> Maybe String -> Maybe String
+findLastTS sJResponse timestamp = case messages sJResponse of
+    (Just []) -> timestamp
+    (Just ms) -> Just $ ts $ head ms
+    Nothing -> timestamp
+
+makeConHistory :: StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool, Maybe String) IO Request
 makeConHistory = do
-    (timestamp, token, channel, _, _, _, _) <- get
+    (timestamp, token, channel, _, _, _, _, _) <- get
     let reqString = "GET " ++ "https://slack.com/api/conversations.history?token="
             ++ token ++ "&channel=" ++ channel
     case timestamp of 
@@ -71,9 +78,9 @@ makeConHistory = do
         (Just ts) -> return $ parseRequest_ $ reqString ++ "&oldest=" ++ ts
 
 makePostMessage :: T.Text ->
-    StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool) IO Request
+    StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool, Maybe String) IO Request
 makePostMessage msgText = do
-    (_, token, channel, _, _, _, _) <- get
+    (_, token, channel, _, _, _, _, _) <- get
     let req = parseRequest_ $ "POST " ++ "https://slack.com/api/chat.postMessage"
         bodyText = "{\"channel\": \"" `T.append` (T.pack channel) `T.append`
             "\", \"text\": \"" `T.append` msgText `T.append` "\"}"
@@ -91,27 +98,70 @@ hadleResponse response = do
     return $ fromJust parsed
 
 handleMessage :: T.Text -> 
-    ExceptT BotError (StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool) IO) ()
+    ExceptT BotError (StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool, Maybe String) IO) ()
 handleMessage "_help" = do
-    (_, _, _, hMsg, _, _, _) <- get
-    postMessage hMsg
+    (_, _, _, hMsg, _, _, _, _) <- get
+    postMessage False hMsg
 handleMessage "_repeat" = do
-    (_, _, _, _, rMsg, r, _) <- get
+    (_, _, _, _, rMsg, r, _, _) <- get
     let rText = T.pack $ show r
         rnMsg = rMsg `T.append` rText
-    postMessage rnMsg
+    postMessage True rnMsg
 handleMessage msg = do
-    (_, _, _, _, _, r, _) <- get
-    replicateM_ r $ postMessage msg
+    (_, _, _, _, _, r, _, _) <- get
+    replicateM_ r $ postMessage False msg
 
-postMessage :: T.Text -> 
-    ExceptT BotError (StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool) IO) ()
-postMessage msgText = do
-    (_, _, _, _, _, _, dlog) <- get
+postMessage :: Bool -> T.Text -> 
+    ExceptT BotError (StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool, Maybe String) IO) ()
+postMessage isRepeatMsg msgText = do
+    (timestamp, token, channel, hMsg, rMsg, r, dlog, _) <- get
     req <- lift $ makePostMessage msgText
     response <- httpLBS req
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
+    when isRepeatMsg $ do 
+        let unparsed = getResponseBody response
+            parsed = decode unparsed :: Maybe SJResponse
+            repeatTS = ts <$> (message =<< parsed)
+        when (isNothing repeatTS) $ throwError $ NoParse $ show unparsed
+        liftIO $ print repeatTS
+        put (timestamp, token, channel, hMsg, rMsg, r, dlog, repeatTS)
     currTime <- liftIO getCurrTime
     when dlog $ liftIO $ 
         (logDebug Slack) $ "\tA message was sent\n" `T.append` "\tText: " `T.append` msgText
     
+makeGetReactions :: StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool, Maybe String) IO Request
+makeGetReactions = do
+    (_, token, channel, _, _, _, _, repeatTS) <- get
+    let rTS = fromMaybe (error "Calling makeGetReactions w/o repeat timestamp") repeatTS
+        reqString = "GET " ++ "https://slack.com/api/reactions.get?token="
+            ++ token ++ "&channel=" ++ channel ++ "&timestamp=" ++ rTS
+    return $ parseRequest_ reqString
+        
+handleRepeatTS :: ExceptT BotError (StateT (Maybe String, String, String, T.Text, T.Text, Int, Bool, Maybe String) IO) ()
+handleRepeatTS = do
+    (timestamp, token, channel, hMsg, rMsg, _, dlog, repeatTS) <- get
+    when (isJust repeatTS) $ do
+        req <- lift $ makeGetReactions
+        response <- httpLBS req 
+        unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
+        let unparsed = getResponseBody response
+            parsed = decode unparsed :: Maybe SJResponse
+            racts = (fmap name) <$> (parsed >>= message >>= reactions)
+            mbR = parseReaction racts
+        when (isNothing parsed) $ throwError $ NoParse $ show unparsed
+        when (isJust mbR) $ do
+            let r = fromJust mbR
+            put (timestamp, token, channel, hMsg, rMsg, r, dlog, Nothing)
+            when dlog $ liftIO $ (logDebug Slack) $ "\tA number of repeats was changed\n" `T.append` 
+                "\tTo: " `T.append` (T.pack $ show r)
+        
+parseReaction :: Maybe [String] -> Maybe Int
+parseReaction (Just [w]) = case w of
+    "one"   -> Just 1
+    "two"   -> Just 2
+    "three" -> Just 3
+    "four"  -> Just 4
+    "five"  -> Just 5
+    _       -> Nothing
+parseReaction _ = Nothing
+        

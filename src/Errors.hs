@@ -55,7 +55,7 @@ sParsingErrorHandler (BadCallbackData badData) = do
     return emptySJResponse
 
 sResponseErrorHandler :: BotError -> 
-    ExceptT BotError (StateT (Maybe String, String, String, Text, Text, Int, Bool) IO) ()
+    ExceptT BotError (StateT (Maybe String, String, String, Text, Text, Int, Bool, Maybe String) IO) ()
 sResponseErrorHandler (ResponseError status) = liftIO $ responseError Slack status
 sResponseErrorHandler (NoParse body) = liftIO $ parsingError Slack body
 sResponseErrorHandler (BadCallbackData badData) = liftIO $ badCallbackError Slack badData
