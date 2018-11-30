@@ -1,4 +1,5 @@
 import WebIO
+--import Test.QuickCheck
 
 main :: IO ()
 main = do

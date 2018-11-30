@@ -2,6 +2,12 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 module Telegram.WebIO (runTelegramBot) where
 
+import Errors
+import Logging
+import Helpers
+import Bot
+import Config
+import Telegram.Bot
 import qualified Data.ByteString       as B
 import qualified Data.ByteString.Lazy  as LB
 import qualified Data.ByteString.Char8 as BC
@@ -18,16 +24,10 @@ import           Control.Monad.State
 import           Control.Monad.Except
 import           Data.HashMap.Strict hiding (null, filter, foldr)
 import           Text.Read (readMaybe)
-import           Telegram.Bot
-import           Errors
-import           Logging
-import           Helpers
-import           Bot
-import           Config
 import           Prelude hiding (id)
 
 {-To DO
--- keyboard forming on every makeCallbackQuery call
+
 -}
 
 runTelegramBot :: IO ()
@@ -58,9 +58,14 @@ sendLastMsgs = do
     runExceptT $ 
         catchError (forM_ messages $ uncurry handleMessage) tResponseErrorHandler
     
+    updateState lastUpdtID
+    sendLastMsgs        
+
+updateState :: Maybe Integer -> 
+    StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Integer Int, Bool) IO ()
+updateState lastUpdtID = do
     (_, sr, hMsg, rMsg, r, chatsRepeat, dlog) <- get    
     put (lastUpdtID, sr, hMsg, rMsg, r, chatsRepeat, dlog)
-    sendLastMsgs        
 
 --                                                chatID   msgText     queryID chatID   button
 sortJResponse :: JResponse -> Maybe Integer -> ([(Integer, T.Text)], [(String, Integer, String)])
@@ -106,17 +111,9 @@ handleCallback (queryID, chatID, btnPressed) = do
     let btn = readMaybe btnPressed :: Maybe Int
     when (isNothing btn) $ throwError $ BadCallbackData btnPressed
     let chatsRepeat' = insert chatID (fromJust btn) chatsRepeat
-        req = parseRequest_ $ "POST " ++ sr ++  "answerCallbackQuery"
-        queryIDLBS = fromString queryID
-        btnPressedLBS = fromString btnPressed
-        msgLBS = "You've choosen to repeat messages " `LB.append` btnPressedLBS `LB.append` " times"
-        bodyLBS = "{\"callback_query_id\": \"" `LB.append` queryIDLBS `LB.append` 
-                   "\", \"text\": \"" `LB.append` msgLBS `LB.append` "\"}"
-        reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
-        endReq = setRequestBodyLBS bodyLBS reqWithHeaders
-    response <- httpLBS endReq
+    req <- lift $ makeAnswerCallbackQuery queryID btnPressed
+    response <- httpLBS req
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
-    currTime <- liftIO getCurrTime
     when dlog $ liftIO $ (logDebug Telegram) $ "\tA number of repeats was changed\n" `T.append` 
         "\tFor: " `T.append` (T.pack $ show chatID) `T.append` "\n" `T.append` "\tTo: " `T.append` (T.pack btnPressed)
     put (offset, sr, hMsg, rMsg, r, chatsRepeat', dlog)
@@ -147,7 +144,6 @@ sendMessage chatID msgText hasKeyboard = do
     let chatIDText = T.pack $ show chatID
     response <- httpLBS req
     unless (isOkResponse response) $ throwError $ ResponseError $ show $ getResponseStatus response
-    currTime <- liftIO getCurrTime
     when dlog $ liftIO $ 
         (logDebug Telegram) $ "\tA message was sent\n" `T.append` "\tTo: " `T.append` chatIDText `T.append` 
             "\n" `T.append` "\tText: " `T.append` msgText
@@ -168,5 +164,18 @@ makeCallbackQuery chatID msgText = do
     (_, sr, _, _, _, _, _) <- get
     let req = parseRequest_ $ "POST " ++ sr ++  "sendMessage"
         bodyLBS = encode $ RepeatMessageBody {chat_id = chatID, text = msgText, reply_markup = keyboard}
+        reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
+    return $ setRequestBodyLBS bodyLBS reqWithHeaders
+
+makeAnswerCallbackQuery :: String -> String -> 
+    StateT (Maybe Integer, String, T.Text, T.Text, Int, HashMap Integer Int, Bool) IO Request
+makeAnswerCallbackQuery queryID btnPressed = do
+    (_, sr, _, _, _, _, _) <- get
+    let req = parseRequest_ $ "POST " ++ sr ++  "answerCallbackQuery"
+        queryIDLBS = fromString queryID
+        btnPressedLBS = fromString btnPressed
+        msgLBS = "You've choosen to repeat messages " `LB.append` btnPressedLBS `LB.append` " times"
+        bodyLBS = "{\"callback_query_id\": \"" `LB.append` queryIDLBS `LB.append` 
+                   "\", \"text\": \"" `LB.append` msgLBS `LB.append` "\"}"
         reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
     return $ setRequestBodyLBS bodyLBS reqWithHeaders

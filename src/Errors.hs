@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Errors where
+module Errors (tParsingErrorHandler, tResponseErrorHandler, 
+               sParsingErrorHandler, sResponseErrorHandler,
+               BotError(..)) where
 
 import Control.Monad.Except
 import Control.Monad.State
