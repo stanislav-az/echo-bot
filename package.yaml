@@ -33,6 +33,9 @@ dependencies:
 - directory
 - unordered-containers
 - hspec
+- QuickCheck
+- quickcheck-instances
+- generic-random
 
 library:
   source-dirs: src

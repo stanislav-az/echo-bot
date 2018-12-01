@@ -2,16 +2,21 @@
 module TelegramTests where
 
 import Telegram.WebIOInternal
+import Telegram.Bot
 import Config
 import Tokens
 import Test.Hspec
+import Test.QuickCheck
+import Test.QuickCheck.Instances
+import Generic.Random
+import Generic.Random.Tutorial
+import Data.Maybe
 import Control.Monad.State
-import Data.HashMap.Strict
+import Data.HashMap.Strict hiding (null)
 import Network.HTTP.Simple
 import Network.HTTP.Conduit
 import Data.CaseInsensitive
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as LB
 
 {-
 All Requests are not compared properly. Request data has no Eq instance.
@@ -23,10 +28,27 @@ RequestBody data has no Eq or Show instances.
 runTelegramTests :: IO ()
 runTelegramTests = hspec $ do
     describeUpdateState
+    describeSortJResponse
+    describeFindLastUpdtID
     describeMakeGetUpdates
     describeMakeSendMessage
     describeMakeCallbackQuery
     describeMakeAnswerCallbackQuery
+
+instance Arbitrary JResponse where
+    arbitrary = genericArbitraryU 
+
+instance Arbitrary Update where
+    arbitrary = genericArbitraryU 
+
+instance Arbitrary Message where
+    arbitrary = genericArbitraryU 
+
+instance Arbitrary Chat where
+    arbitrary = genericArbitraryU 
+
+instance Arbitrary CallbackQuery where
+    arbitrary = genericArbitraryU 
 
 describeUpdateState :: SpecWith ()
 describeUpdateState = do
@@ -35,6 +57,18 @@ describeUpdateState = do
             execStateT (updateState $ Just 5) 
                 (Nothing, "sr", "hMsg", "rMsg", 1, empty, True) `shouldReturn`
                 (Just 5, "sr", "hMsg", "rMsg", 1, empty, True)
+
+describeSortJResponse :: SpecWith ()
+describeSortJResponse = do
+    describe "sortJResponse" $ do
+        it "Should have no messages or queries when there is no updates" $ do
+            sortJResponse emptyJResponse Nothing `shouldBe` ([],[])
+
+describeFindLastUpdtID :: SpecWith ()
+describeFindLastUpdtID = do
+    describe "findLastUpdtID" $ do
+        it "Returns Nothing if and only if there is no updates and offset is Nothing" $ property $ 
+            \us ot -> ((null us) && (isNothing ot)) == (isNothing $ findLastUpdtID us ot)
 
 describeMakeGetUpdates :: SpecWith ()
 describeMakeGetUpdates = do
