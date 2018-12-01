@@ -7,7 +7,7 @@ import qualified Data.Text as T
 tStandardRequest :: IO String
 tStandardRequest = do
     config <- load [Required "./bot.config.local"]
-    token <- require config "telegramToken" -- possibility of adding error management
+    token <- require config "telegramToken"
     return $ "https://api.telegram.org/bot" ++ token ++ "/"  
 
 slackConfig :: IO (String, String)

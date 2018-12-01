@@ -2,6 +2,7 @@
 saz-echo-bot.cabal
 *.local
 *.bak
+Tokens.hs
 
 # Compiled source #
 ###################

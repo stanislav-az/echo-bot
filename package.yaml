@@ -32,6 +32,7 @@ dependencies:
 - configurator
 - directory
 - unordered-containers
+- hspec
 
 library:
   source-dirs: src
