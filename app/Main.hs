@@ -8,8 +8,3 @@ main :: IO ()
 main = do
     logStart
     runTelegramBot
-
-{-To DO
--- unit-tests, readme
--}
-
