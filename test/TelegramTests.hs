@@ -4,7 +4,6 @@ module TelegramTests where
 import Telegram.WebIOInternal
 import Telegram.Bot
 import Config
-import Tokens
 import Test.Hspec
 import Test.QuickCheck
 import Test.QuickCheck.Instances
@@ -135,3 +134,6 @@ answerCallbackQueryReq :: String
 answerCallbackQueryReq = show reqWithHeaders where
     req = parseRequest_ $ "POST " ++ standardRequest ++  "answerCallbackQuery"
     reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json")] req
+
+telegramToken :: String
+telegramToken = "00:AA"

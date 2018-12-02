@@ -1,9 +1,12 @@
 import TelegramTests
---import Test.Hspec -- HPFFP p. 529
---import Test.QuickCheck
+import SlackTests
 
 main :: IO ()
 main = do 
-    putStrLn "Running telegram tests..."
+    putStrLn "Running Telegram tests..."
     runTelegramTests
     putStrLn "Telegram tests done!"
+    putStrLn "Running Slack tests..."
+    runSlackTests
+    putStrLn "Slack tests done!"
+    
