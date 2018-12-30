@@ -1,7 +1,12 @@
 .stack-work/
 saz-echo-bot.cabal
+*~
+
+# Other #
+#########
 *.local
 *.bak
+*-bak.*
 
 # Compiled source #
 ###################
@@ -40,4 +45,3 @@ saz-echo-bot.cabal
 .Trashes
 ehthumbs.db
 Thumbs.db
-*~
