@@ -5,9 +5,7 @@ import Data.Time.Clock (UTCTime(..))
 import Network.HTTP.Simple
 
 getCurrTime :: IO UTCTime
-getCurrTime = do
-    sysTime <- getSystemTime
-    return $ systemToUTCTime sysTime
+getCurrTime = systemToUTCTime <$> getSystemTime
 
 isOkResponse :: Response a -> Bool
 isOkResponse response = case getResponseStatusCode response of
