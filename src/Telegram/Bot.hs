@@ -3,13 +3,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Telegram.Bot where
 
-import GHC.Generics
-import Data.Aeson
-import Data.Text
+import           GHC.Generics
+import           Data.Aeson
+import           Data.Text
 
 data JResponse = JResponse {
     ok :: Bool,
-    result :: [Update] 
+    result :: [Update]
 } deriving (Generic, Show)
 
 data Update = Update {
@@ -72,18 +72,13 @@ instance FromJSON InlineKeyboardButton
 
 instance ToJSON CallbackQuery
 instance FromJSON CallbackQuery where
-    parseJSON = withObject "CallbackQuery" $ \v -> CallbackQuery
-        <$> v .: "id"
-        <*> v .: "message"
-        <*> v .: "data"
+  parseJSON = withObject "CallbackQuery"
+    $ \v -> CallbackQuery <$> v .: "id" <*> v .: "message" <*> v .: "data"
 
 emptyJResponse :: JResponse
-emptyJResponse = JResponse {ok = True, result = []}
+emptyJResponse = JResponse { ok = True, result = [] }
 
 keyboard :: InlineKeyboardMarkup
-keyboard = InlineKeyboardMarkup {
-    inline_keyboard = [button <$> [1..5]] } where
-        button i = InlineKeyboardButton {
-            text = pack $ show i,
-            callback_data = show i
-        }
+keyboard = InlineKeyboardMarkup { inline_keyboard = [button <$> [1 .. 5]] } where
+  button i =
+    InlineKeyboardButton { text = pack $ show i, callback_data = show i }

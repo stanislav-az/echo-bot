@@ -32,10 +32,8 @@ dependencies:
 - configurator
 - directory
 - unordered-containers
-- hspec
-- QuickCheck
-- quickcheck-instances
-- generic-random
+- simple-logger
+- filepath
 
 library:
   source-dirs: src
@@ -61,3 +59,7 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - saz-echo-bot
+    - hspec
+    - QuickCheck
+    - quickcheck-instances
+    - generic-random

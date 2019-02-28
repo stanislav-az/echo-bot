@@ -1,40 +1,79 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Config where
 
-import Data.Configurator
-import qualified Data.Text as T
+import qualified Data.Configurator             as C
+                                                ( lookup
+                                                , autoReload
+                                                , autoConfig
+                                                , require
+                                                )
+import qualified Data.Configurator.Types       as C
+                                                ( Worth(..)
+                                                , Config(..)
+                                                , Configured(..)
+                                                , Name(..)
+                                                )
+import qualified Control.Logger.Simple         as L
+                                                ( LogConfig(..) )
+import qualified System.FilePath.Posix         as D
+                                                ( takeDirectory )
+import qualified System.Directory              as D
+                                                ( createDirectoryIfMissing )
+import qualified Data.Text                     as T
+import qualified Data.HashMap.Strict           as HM
+import           Bot.BotMonad
 
-tStandardRequest :: IO String
-tStandardRequest = do
-    config <- load [Required "./bot.config.local"]
-    token <- require config "telegramToken"
-    return $ "https://api.telegram.org/bot" ++ token ++ "/"  
+-- tStandardRequest :: IO String
+-- tStandardRequest = do
+--     config <- load [Required "./bot.config.local"]
+--     token <- require config "telegramToken"
+--     return $ "https://api.telegram.org/bot" ++ token ++ "/"  
 
-slackConfig :: IO (String, String)
-slackConfig = do
-    config <- load [Required "./bot.config.local"]
-    token <- require config "slackToken"
-    channel <- require config "slackChannel"
-    return (token, channel)
+loadConfig :: IO C.Config
+loadConfig = fst <$> C.autoReload C.autoConfig [C.Required "./config/bot.local"]
 
-helpMsg :: IO T.Text
-helpMsg = do
-    config <- load [Required "./bot.config.local"]
-    require config "helpMsg"
+getByName :: C.Configured a => C.Config -> C.Name -> IO a
+getByName = C.require
 
-repeatMsg :: IO T.Text
-repeatMsg = do
-    config <- load [Required "./bot.config.local"]
-    require config "repeatMsg"
+getMaybe :: C.Configured a => C.Config -> C.Name -> IO (Maybe a)
+getMaybe = C.lookup
 
-defaultRepeat :: IO Int
-defaultRepeat = do
-    config <- load [Required "./bot.config.local"]
-    require config "defaultRepeat"
+getLogConfig :: C.Config -> IO L.LogConfig
+getLogConfig conf = do
+  logToStdout <- getByName conf "logging.log_to_stdout"
+  logToFile   <- getMaybe conf "logging.log_to_file"
+  let logDir = D.takeDirectory <$> logToFile
+  maybe (pure ()) (D.createDirectoryIfMissing True) logDir
+  pure $ L.LogConfig { L.lc_file = logToFile, L.lc_stderr = logToStdout }
 
-debugLogging :: IO Bool
-debugLogging = do
-    config <- load [Required "./bot.config.local"]
-    require config "debugLogging" 
+makeTelegramEnv :: IO TelegramEnv
+makeTelegramEnv = do
+  conf  <- loadConfig
+  token <- getByName conf "telegram.token"
+  hMsg  <- getByName conf "telegram.help_msg"
+  rMsg  <- getByName conf "telegram.repeat_msg"
+  rNum  <- getByName conf "telegram.repeat_number"
+  pure $ TelegramEnv { tLastUpdateId = Nothing
+                     , tToken        = token
+                     , tHelpMsg      = hMsg
+                     , tRepeatMsg    = rMsg
+                     , tRepeatNumber = rNum
+                     , tRepeatMap    = HM.empty
+                     }
 
-    
+makeSlackEnv :: IO SlackEnv
+makeSlackEnv = do
+  conf    <- loadConfig
+  token   <- getByName conf "slack.token"
+  channel <- getByName conf "slack.channel"
+  hMsg    <- getByName conf "slack.help_msg"
+  rMsg    <- getByName conf "slack.repeat_msg"
+  rNum    <- getByName conf "slack.repeat_number"
+  pure $ SlackEnv { sLastTimestamp   = Nothing
+                  , sToken           = token
+                  , sChannel         = channel
+                  , sHelpMsg         = hMsg
+                  , sRepeatMsg       = rMsg
+                  , sRepeatNumber    = rNum
+                  , sRepeatTimestamp = Nothing
+                  }

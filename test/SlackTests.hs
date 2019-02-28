@@ -117,7 +117,7 @@ postMessageReq :: String
 postMessageReq = show reqWithHeaders where
     req = parseRequest_ $ "POST " ++ "https://slack.com/api/chat.postMessage"
     reqWithHeaders = setRequestHeaders [("Content-Type" :: CI B.ByteString, "application/json; charset=utf-8"),
-        ("Authorization" :: CI B.ByteString, "Bearer " `B.append` (fromString slackToken))] req
+        ("Authorization" :: CI B.ByteString, "Bearer " <> (fromString slackToken))] req
 
 getReactionsReq :: String
 getReactionsReq = show $ parseRequest_ reqString where

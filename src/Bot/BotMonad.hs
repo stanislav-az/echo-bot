@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Bot.BotMonad where
 
@@ -6,6 +7,7 @@ import           Control.Monad.State
 import           Control.Monad.Except
 import qualified Data.Text                     as T
 import qualified Data.HashMap.Strict           as HM
+import           Bot.BotClass
 
 data TelegramEnv = TelegramEnv {
   tLastUpdateId :: Maybe Integer,
@@ -26,10 +28,9 @@ data SlackEnv = SlackEnv {
   sRepeatTimestamp :: Maybe String
 } deriving (Eq, Show)
 
-data BotError = NoParse ResponseBody | BadCallbackData CallbackData | ResponseError ResponseStatus
-    deriving (Eq, Show)
+data BotError = NoParse ResponseBody | BadCallbackData CallbackData | ResponseError String
+  deriving (Eq, Show)
 
-type ResponseStatus = String
 type ResponseBody = String
 type CallbackData = String
 
@@ -40,28 +41,14 @@ type TelegramMonad a = BotMonad TelegramEnv a
 
 type SlackMonad a = BotMonad SlackEnv a
 
-runTelegramBot
-  :: Maybe Integer
-  -> String
-  -> T.Text
-  -> T.Text
-  -> Int
-  -> HM.HashMap Integer Int
-  -> TelegramMonad a
-  -> IO (Either BotError (a, TelegramEnv))
-runTelegramBot t1 t2 t3 t4 t5 t6 = runExceptT . (`runStateT` env) . runBotMonad
-  where env = TelegramEnv t1 t2 t3 t4 t5 t6
+runTelegramBot :: TelegramEnv -> TelegramMonad a -> IO (Either BotError a)
+runTelegramBot env = runExceptT . (`evalStateT` env) . runBotMonad
 
-runSlackBot
-  :: Maybe String
-  -> String
-  -> String
-  -> T.Text
-  -> T.Text
-  -> Int
-  -> Maybe String
-  -> BotMonad SlackEnv a
-  -> IO (Either BotError (a, SlackEnv))
-runSlackBot t1 t2 t3 t4 t5 t6 t7 = runExceptT . (`runStateT` env) . runBotMonad
-  where env = SlackEnv t1 t2 t3 t4 t5 t6 t7
+runSlackBot :: SlackEnv -> SlackMonad a -> IO (Either BotError a)
+runSlackBot env = runExceptT . (`evalStateT` env) . runBotMonad
 
+instance MonadLogger (BotMonad e) where
+  logDebug = liftIO . logDebug
+  logInfo  = liftIO . logInfo
+  logWarn  = liftIO . logWarn
+  logError = liftIO . logError

@@ -1,16 +1,16 @@
 module Slack.WebIO where
 
-import Config
-import Slack.WebIOInternal
-import Control.Monad.State
+import           Control.Monad.Except
+import           Errors
+import           Config
+import           Slack.WebIOInternal
+import           Bot.BotMonad
+import           Bot.BotClass
+import           Helpers
 
-runSlackBot :: IO ()
-runSlackBot = do
-    (token, channel) <- slackConfig
-    hMsg <- helpMsg
-    rMsg <- repeatMsg
-    r <- defaultRepeat
-    dlog <- debugLogging
-    evalStateT goSlackBot (Nothing, token, channel, hMsg, rMsg, r, dlog, Nothing)
-    
-        
+startSlackBot :: IO ()
+startSlackBot = do
+  env <- makeSlackEnv
+  res <- runSlackBot env $ catchError goSlackBot botErrorHandler
+  either (logError .  texify) pure res
+

@@ -1,0 +1,21 @@
+bot_to_run = "Telegram"
+
+telegram {
+  help_msg = "This is a simple echo-bot, it sends back your messages. To choose number of message repeats send /repeat command."
+  repeat_msg = "Please, choose number of times to repeat your messages, current number is "
+  repeat_number = 1
+  token = "000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+}
+
+slack {
+  help_msg = "This is a simple echo-bot, it sends back your messages. To choose number of message repeats send /repeat command."
+  repeat_msg = "Please, choose number of times to repeat your messages, current number is "
+  repeat_number = 1
+  token = "xoxb-000000000000-000000000000-AAAAAAAAAAAAAAAAAAAAAAAA"
+  channel = "000000000"
+}
+
+logging {
+  log_to_stdout = true
+  log_to_file = "./log/bot.log" # Optional parameter
+}

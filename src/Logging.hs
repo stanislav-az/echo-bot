@@ -1,48 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Logging where
 
+import           Bot.BotClass
 import qualified Data.Text                     as T
-import qualified Data.Text.IO                  as TIO
-import           Helpers
-import           Bot
-import           System.Directory               ( createDirectoryIfMissing )
-import           Config
 
-logDebug :: Bot -> T.Text -> IO ()
-logDebug bot msg = do
-    currTime <- getCurrTime
-    let currTimeText = T.pack $ show currTime
-        botText      = T.pack $ show bot
-        log =
-            botText
-                `T.append` " DEBUG entry at "
-                `T.append` currTimeText
-                `T.append` "\n"
-                `T.append` msg
-                `T.append` "\n"
-    TIO.appendFile "./log/debug.log" log
+logChatMessage :: MonadLogger m => T.Text -> T.Text -> m ()
+logChatMessage chat msg =
+  logDebug $ "A message was sent... To: " <> chat <> " Text: " <> msg
 
-logError :: Bot -> String -> IO ()
-logError bot msg = do
-    currTime <- getCurrTime
-    let log =
-            (show bot)
-                ++ " ERROR entry at "
-                ++ (show currTime)
-                ++ "\n"
-                ++ msg
-                ++ "\n"
-    appendFile "./log/error.log" log
-
-logStart :: IO ()
-logStart = do
-    currTime <- getCurrTime
-    createDirectoryIfMissing False "./log"
-    dlog <- debugLogging
-    appendFile "./log/debug.log"
-        $  "LOG "
-        ++ (if dlog then "START" else "DISABLED")
-        ++ " at "
-        ++ show currTime
-        ++ "\n"
-    appendFile "./log/error.log" $ "LOG START at " ++ show currTime ++ "\n"
+logChatRepeat :: MonadLogger m => T.Text -> T.Text -> m ()
+logChatRepeat chat repeat =
+  logDebug
+    $  "A number of repeats was changed... For: "
+    <> chat
+    <> " To: "
+    <> repeat

@@ -1,15 +1,16 @@
 module Telegram.WebIO where
 
-import Config
-import Telegram.WebIOInternal
-import Control.Monad.State
-import Data.HashMap.Strict
+import           Config
+import           Telegram.WebIOInternal
+import           Bot.BotMonad
+import           Bot.BotClass
+import           Helpers
+import           Control.Monad.Except
+import           Errors
 
-runTelegramBot :: IO ()
-runTelegramBot = do
-    sr <- tStandardRequest
-    hMsg <- helpMsg
-    rMsg <- repeatMsg
-    r <- defaultRepeat
-    dlog <- debugLogging
-    evalStateT sendLastMsgs (Nothing, sr, hMsg, rMsg, r, empty, dlog)
+startTelegramBot :: IO ()
+startTelegramBot = do
+  env <- makeTelegramEnv
+  res <- runTelegramBot env $ catchError goTelegramBot botErrorHandler
+  either (logError . texify) pure res
+
