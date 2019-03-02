@@ -22,6 +22,7 @@ import qualified System.Directory              as D
 import qualified Data.Text                     as T
 import qualified Data.HashMap.Strict           as HM
 import           Bot.BotMonad
+import Slack.Models
 
 -- tStandardRequest :: IO String
 -- tStandardRequest = do
@@ -30,7 +31,8 @@ import           Bot.BotMonad
 --     return $ "https://api.telegram.org/bot" ++ token ++ "/"  
 
 loadConfig :: IO C.Config
-loadConfig = fst <$> C.autoReload C.autoConfig [C.Required "./config/bot.local"]
+loadConfig =
+  fst <$> C.autoReload C.autoConfig [C.Required "./config/bot.local"]
 
 getByName :: C.Configured a => C.Config -> C.Name -> IO a
 getByName = C.require
@@ -72,8 +74,8 @@ makeSlackEnv = do
   pure $ SlackEnv { sLastTimestamp   = Nothing
                   , sToken           = token
                   , sChannel         = channel
-                  , sHelpMsg         = hMsg
-                  , sRepeatMsg       = rMsg
+                  , sHelpMsg         = SlackMessage hMsg
+                  , sRepeatMsg       = SlackMessage rMsg
                   , sRepeatNumber    = rNum
                   , sRepeatTimestamp = Nothing
                   }

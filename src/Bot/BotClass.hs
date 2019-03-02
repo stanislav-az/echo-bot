@@ -20,13 +20,3 @@ instance MonadLogger IO where
   logInfo  = L.logInfo
   logWarn  = L.logWarn
   logError = L.logError
-
--- data EchoBot  msg = EchoBot{
---   getUpdates :: Int -> IO [msg],
---   getReactions :: Int -> IO Int,
---   sendHelp :: T.Text -> IO (),
---   sendMsgBack :: msg -> IO ()
--- }
-
--- telegramBot :: EchoBot TelegramMessage
--- telegramBot = EchoBot { getUpdates = \uid -> pure [] }

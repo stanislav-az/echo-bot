@@ -17,7 +17,7 @@ import           Control.Monad.Except
 import           Data.Maybe
 import           Data.Aeson
 import           Control.Concurrent             ( threadDelay )
-import           Bot.BotMonad
+import           Bot.BotMonadD
 import           Bot.BotClass
 import           Logging
 

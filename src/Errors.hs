@@ -9,7 +9,7 @@ import           Slack.Bot
 import           Data.Text
 import           Data.HashMap.Strict
 import           Bot
-import           Bot.BotMonad
+import           Bot.BotMonadD
 import           Bot.BotClass
 import           Helpers
 import           Network.HTTP.Simple

@@ -4,13 +4,13 @@ import           Control.Monad.Except
 import           Errors
 import           Config
 import           Slack.WebIOInternal
-import           Bot.BotMonad
+import           Bot.BotMonadD
 import           Bot.BotClass
 import           Helpers
 
-startSlackBot :: IO ()
-startSlackBot = do
-  env <- makeSlackEnv
-  res <- runSlackBot env $ catchError goSlackBot botErrorHandler
-  either (logError .  texify) pure res
+-- startSlackBot :: IO ()
+-- startSlackBot = do
+--   env <- makeSlackEnv
+--   res <- runSlackBot env $ catchError goSlackBot botErrorHandler
+--   either (logError .  texify) pure res
 

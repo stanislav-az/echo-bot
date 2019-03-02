@@ -31,7 +31,7 @@ import           Data.HashMap.Strict     hiding ( null
                                                 )
 import           Text.Read                      ( readMaybe )
 import           Prelude                 hiding ( id )
-import           Bot.BotMonad
+import           Bot.BotMonadD
 import           Bot.BotClass
 
 -- lastUpdtID request help repeat repeatMap dlog
