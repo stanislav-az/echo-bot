@@ -1,20 +1,19 @@
 module Bot.EchoBot where
 
 import           Control.Monad
-import           Control.Concurrent             ( threadDelay )
-import           Control.Monad.IO.Class
+import           Bot.BotClass
 
-data EchoBot m msg r = EchoBot{
-  getUpdates :: m ([msg],[r]),
+data EchoBot m msg react = EchoBot{
+  getUpdates :: m ([msg],[react]),
   handleMsg :: msg -> m (),
-  handleReaction :: r -> m ()
+  handleReaction :: react -> m ()
 }
 
-goEchoBot :: MonadIO f => EchoBot f msg r -> f b
+goEchoBot :: MonadDelay f => EchoBot f msg r -> f b
 goEchoBot bot = forever oneCycle
  where
   oneCycle = getUpdates bot >>= \(ms, rs) -> do
     mapM_ (handleMsg bot)      ms
     mapM_ (handleReaction bot) rs
-    liftIO $ threadDelay 500000
+    delay 500000
 

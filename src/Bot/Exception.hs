@@ -7,9 +7,6 @@ import           Helpers
 import           Network.HTTP.Simple
 import           Control.Monad
 
--- Use catches
--- catches :: (Foldable f, MonadCatch m) => m a -> f (Handler m a) -> m a 
-
 exceptionHandlers :: MonadLogger m => [Handler m ()]
 exceptionHandlers =
   [Handler botExceptionHandler, Handler otherExceptionHandler]

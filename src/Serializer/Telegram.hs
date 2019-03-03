@@ -103,28 +103,15 @@ instance ToJSON TCallbackAnswer where
 emptyTResponse :: TResponse
 emptyTResponse = TResponse True []
 
-tResponseToUpdateId :: TResponse -> Maybe Integer -> Maybe Integer
-tResponseToUpdateId tResponse = findLastUid (tResponseResult tResponse)
- where
-  findLastUid [] offset = offset
-  findLastUid us _      = Just $ tUpdateId $ last us
-
-tResponseToModels
-  :: TResponse -> Maybe Integer -> ([TelegramMessage], [TelegramReaction])
-tResponseToModels tResponse offset = foldr
-  go
-  ([], [])
-  (seeIfAreOld offset $ tResponseResult tResponse) where
-  seeIfAreOld Nothing xs = xs
-  seeIfAreOld _       [] = []
-  seeIfAreOld _       xs = tail xs
-  go (TUpdate _ a b) (msgs, cbs) = (getMsg a ++ msgs, getCb b ++ cbs)
-  getMsg (Just (TMessage _ (TChat chatID) (Just txt))) =
-    [TelegramMessage chatID txt]
-  getMsg _ = []
-  getCb (Just (TCallbackQuery queryID (Just msg) (Just btnPressed))) =
-    [TelegramReaction queryID (tChatId $ tMessageChat msg) btnPressed]
-  getCb _ = []
+tResponseToModels :: TResponse -> ([TelegramMessage], [TelegramReaction])
+tResponseToModels tResponse = foldr go ([], []) (tResponseResult tResponse) where
+  go (TUpdate uid a b) (msgs, cbs) = (getMsg uid a ++ msgs, getCb uid b ++ cbs)
+  getMsg uid (Just (TMessage _ (TChat chatID) (Just txt))) =
+    [TelegramMessage uid chatID txt]
+  getMsg _ _ = []
+  getCb uid (Just (TCallbackQuery queryID (Just msg) (Just btnPressed))) =
+    [TelegramReaction uid queryID (tChatId $ tMessageChat msg) btnPressed]
+  getCb _ _ = []
 
 tMessageToPostMessage :: TelegramMessage -> TPostMessage
 tMessageToPostMessage = TPostMessage

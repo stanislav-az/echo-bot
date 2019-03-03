@@ -8,6 +8,8 @@ import qualified Control.Logger.Simple         as L
                                                 , logWarn
                                                 , logError
                                                 )
+import qualified Control.Concurrent            as CC
+                                                ( threadDelay )
 
 class (Monad m) => MonadLogger m where
   logDebug :: T.Text -> m ()
@@ -20,3 +22,9 @@ instance MonadLogger IO where
   logInfo  = L.logInfo
   logWarn  = L.logWarn
   logError = L.logError
+
+class (Monad m) => MonadDelay m where
+  delay :: Int -> m ()
+
+instance MonadDelay IO where
+  delay = CC.threadDelay

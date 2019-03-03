@@ -47,29 +47,37 @@ tGetUpdates = do
   tResponse <- maybe (throwParseException unparsed >> pure emptyTResponse)
                      pure
                      parsed
-  let models  = tResponseToModels tResponse offset
-      lastUId = tResponseToUpdateId tResponse offset
-  modify $ \s -> s { tLastUpdateId = lastUId }
-  pure models
+  pure $ tResponseToModels tResponse
+
+tModifyIterator :: (MonadState TelegramEnv m) => Integer -> TelegramEnv -> m ()
+tModifyIterator uid env@TelegramEnv {..} = maybe ifNothing ifJust tLastUpdateId
+ where
+  ifNothing = put env { tLastUpdateId = Just $ uid + 1 }
+  ifJust offset | uid + 1 > offset = ifNothing
+                | otherwise        = pure ()
 
 tHandleMsg
   :: (MonadState TelegramEnv m, MonadIO m, MonadThrow m, MonadLogger m)
   => TelegramMessage
   -> m ()
-tHandleMsg (TelegramMessage chatId "/help") =
-  gets tHelpMsg >>= \mText -> tSendMsg (TelegramMessage chatId mText) False
-tHandleMsg (TelegramMessage chatId "/repeat") = do
+tHandleMsg (TelegramMessage uid chatId "/help") = do
+  mText <- gets tHelpMsg
+  tSendMsg (TelegramMessage uid chatId mText) False
+  get >>= tModifyIterator uid
+tHandleMsg (TelegramMessage uid chatId "/repeat") = do
   rMsg        <- gets tRepeatMsg
   r           <- gets tRepeatNumber
   chatsRepeat <- gets tRepeatMap
   let currR = HM.lookupDefault r chatId chatsRepeat
-      rnMsg = TelegramMessage chatId $ rMsg <> texify currR
+      rnMsg = TelegramMessage uid chatId $ rMsg <> texify currR
   tSendMsg rnMsg True
+  get >>= tModifyIterator uid
 tHandleMsg msg@TelegramMessage {..} = do
   r           <- gets tRepeatNumber
   chatsRepeat <- gets tRepeatMap
   let currR = HM.lookupDefault r tmChatId chatsRepeat
   replicateM_ currR $ tSendMsg msg False
+  get >>= tModifyIterator tmUpdateId
 
 tHandleReaction
   :: (MonadState TelegramEnv m, MonadIO m, MonadThrow m, MonadLogger m)
@@ -86,6 +94,7 @@ tHandleReaction tr@TelegramReaction {..} = do
   checkResponseStatus response
   logChatRepeat (texify trChatId) (T.pack trCallbackData)
   modify $ \s -> s { tRepeatMap = chatsRepeat' }
+  get >>= tModifyIterator trUpdateId
 
 tSendMsg
   :: (MonadState TelegramEnv m, MonadIO m, MonadThrow m, MonadLogger m)

@@ -51,3 +51,7 @@ instance MonadLogger (BotMonad e) where
   logInfo  = liftIO . logInfo
   logWarn  = liftIO . logWarn
   logError = liftIO . logError
+
+instance MonadDelay (BotMonad e) where
+  delay = liftIO . delay
+  
