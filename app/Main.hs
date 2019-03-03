@@ -2,10 +2,9 @@
 
 module Main where
 
-import           Telegram.WebIO
+import           Telegram.Start
 import           Slack.Start
 import           Config
-import           Bot
 import           Bot.BotClass
 import qualified Control.Logger.Simple         as L
                                                 ( withGlobalLogging )

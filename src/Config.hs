@@ -12,6 +12,7 @@ import qualified Data.Configurator.Types       as C
                                                 , Config(..)
                                                 , Configured(..)
                                                 , Name(..)
+                                                , Value(..)
                                                 )
 import qualified Control.Logger.Simple         as L
                                                 ( LogConfig(..) )
@@ -22,13 +23,15 @@ import qualified System.Directory              as D
 import qualified Data.Text                     as T
 import qualified Data.HashMap.Strict           as HM
 import           Bot.BotMonad
-import Slack.Models
+import           Slack.Models
 
--- tStandardRequest :: IO String
--- tStandardRequest = do
---     config <- load [Required "./bot.config.local"]
---     token <- require config "telegramToken"
---     return $ "https://api.telegram.org/bot" ++ token ++ "/"  
+data Bot = Telegram | Slack
+  deriving (Show, Eq)
+
+instance C.Configured Bot where
+  convert (C.String "Telegram") = Just Telegram
+  convert (C.String "Slack"   ) = Just Slack
+  convert _                     = Nothing
 
 loadConfig :: IO C.Config
 loadConfig =

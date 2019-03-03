@@ -10,5 +10,5 @@ data TelegramMessage = TelegramMessage {
 data TelegramReaction = TelegramReaction {
   trId :: String,
   trChatId :: Integer,
-  trButton :: Int
+  trCallbackData :: String
 }

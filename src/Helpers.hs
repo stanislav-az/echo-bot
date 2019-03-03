@@ -9,6 +9,7 @@ import qualified Data.Text                     as T
                                                 ( Text(..)
                                                 , pack
                                                 )
+import qualified Data.ByteString.Char8         as B8
 
 getCurrTime :: IO UTCTime
 getCurrTime = systemToUTCTime <$> getSystemTime
@@ -23,3 +24,9 @@ myID = id
 
 texify :: (Show a) => a -> T.Text
 texify = T.pack . show
+
+toQueryItem :: String -> Maybe B8.ByteString
+toQueryItem = Just . B8.pack
+
+showToQueryItem :: Show a => a -> Maybe B8.ByteString
+showToQueryItem = Just . B8.pack . show
