@@ -23,8 +23,8 @@ data SlackEnv = SlackEnv {
   sLastTimestamp :: Maybe String,
   sToken :: String,
   sChannel :: String,
-  sHelpMsg :: SlackMessage,
-  sRepeatMsg :: SlackMessage,
+  sHelpMsg :: T.Text,
+  sRepeatMsg :: T.Text,
   sRepeatNumber :: Int,
   sRepeatTimestamp :: Maybe String
 } deriving (Eq, Show)

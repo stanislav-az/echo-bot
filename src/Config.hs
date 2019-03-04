@@ -77,8 +77,8 @@ makeSlackEnv = do
   pure $ SlackEnv { sLastTimestamp   = Nothing
                   , sToken           = token
                   , sChannel         = channel
-                  , sHelpMsg         = SlackMessage hMsg
-                  , sRepeatMsg       = SlackMessage rMsg
+                  , sHelpMsg         = hMsg
+                  , sRepeatMsg       = rMsg
                   , sRepeatNumber    = rNum
                   , sRepeatTimestamp = Nothing
                   }

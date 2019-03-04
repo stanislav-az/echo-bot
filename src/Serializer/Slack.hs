@@ -67,18 +67,11 @@ instance FromJSON SReaction where
   parseJSON = withObject "SReaction" $ \v -> SReaction <$> v .: "name"
 
 sResponseToMsgs :: SResponse -> [SlackMessage]
-sResponseToMsgs sResponse = SlackMessage
-  <$> maybe [] (foldl f []) (sResponseMsgs sResponse)
+sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
  where
-  f txts sm = case sMessageUser sm of
-    Nothing -> txts
-    _       -> sMessageText sm : txts
-
-sResponseToTimestamp :: SResponse -> Maybe String -> Maybe String
-sResponseToTimestamp sResponse timestamp = case sResponseMsgs sResponse of
-  (Just []) -> timestamp
-  (Just ms) -> Just $ sMessageTimestamp $ head ms
-  Nothing   -> timestamp
+  f ms SMessage{..} = case sMessageUser of
+    Nothing -> ms
+    _       -> SlackMessage sMessageTimestamp sMessageText : ms
 
 sPostResponseToReactions :: SPostResponse -> [SlackReaction]
 sPostResponseToReactions sPostResponse = SlackReaction

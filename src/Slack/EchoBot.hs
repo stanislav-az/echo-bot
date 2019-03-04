@@ -55,10 +55,7 @@ sAcquireMessages = do
     (throwParseException unparsedHistory >> pure emptySResponse)
     pure
     parsedHistory
-  let ms     = sResponseToMsgs sResponse
-      lastTs = sResponseToTimestamp sResponse timestamp
-  modify $ \s -> s { sLastTimestamp = lastTs }
-  pure ms
+  pure $ sResponseToMsgs sResponse
 
 sAcquireReactions
   :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m)
@@ -82,17 +79,23 @@ sHandleMsg
   :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => SlackMessage
   -> m ()
-sHandleMsg (SlackMessage "_help"  ) = gets sHelpMsg >>= sSendMsg >> pure ()
-sHandleMsg (SlackMessage "_repeat") = do
+sHandleMsg (SlackMessage ts "_help") = do
+  hMsg <- gets sHelpMsg
+  sSendMsg $ SlackMessage ts hMsg
+  modify $ \s -> s { sLastTimestamp = Just ts }
+sHandleMsg (SlackMessage ts "_repeat") = do
   rMsg <- gets sRepeatMsg
   r    <- gets sRepeatNumber
-  let rnMsg = SlackMessage $ (smText rMsg) <> (texify r)
+  let rnMsg = SlackMessage ts (rMsg <> texify r)
   unparsed <- sSendMsg rnMsg
   let parsed   = decode unparsed :: Maybe SPostResponse
       repeatTs = sMessageTimestamp <$> (parsed >>= sPostResponseMsg)
   when (isNothing repeatTs) $ throwParseException unparsed
-  modify $ \s -> s { sRepeatTimestamp = repeatTs }
-sHandleMsg msg = gets sRepeatNumber >>= (\r -> replicateM_ r $ sSendMsg msg)
+  modify $ \s -> s { sRepeatTimestamp = repeatTs, sLastTimestamp = Just ts }
+sHandleMsg msg@SlackMessage {..} = do
+  r <- gets sRepeatNumber
+  replicateM_ r $ sSendMsg msg
+  modify $ \s -> s { sLastTimestamp = Just smTimestamp }
 
 sHandleReaction
   :: (MonadState SlackEnv m, MonadLogger m) => SlackReaction -> m ()
