@@ -6,17 +6,16 @@ import qualified Network.HTTP.Simple           as HTTP
 import           Helpers
 import           Telegram.Models
 import           Serializer.Telegram
-import           Bot.Request
 import           Data.Aeson
 
 standardRequest :: String -> String
 standardRequest = ("https://api.telegram.org/bot" ++)
 
-makeGetUpdates :: Maybe Integer -> String -> Request
+makeGetUpdates :: Maybe Integer -> String -> HTTP.Request
 makeGetUpdates offset token = case offset of
-  Nothing  -> reqWithEmptyBody $ HTTP.setRequestQueryString query req
-  (Just o) -> reqWithEmptyBody
-    $ HTTP.setRequestQueryString (("offset", showToQueryItem o) : query) req
+  Nothing -> HTTP.setRequestQueryString query req
+  (Just o) ->
+    HTTP.setRequestQueryString (("offset", showToQueryItem o) : query) req
  where
   req = HTTP.parseRequest_ $ "GET " ++ standardRequest token ++ "/getUpdates"
   query =
@@ -24,33 +23,24 @@ makeGetUpdates offset token = case offset of
     , ("allowed_updates[]", Just "callback_query,message")
     ]
 
-makeSendMessage :: String -> TelegramMessage -> Request
-makeSendMessage token msg = Request reqWithBody postMessage
+makeSendMessage :: String -> TelegramMessage -> HTTP.Request
+makeSendMessage token msg = HTTP.setRequestBodyJSON postMessage req
  where
   req = HTTP.parseRequest_ $ "POST " ++ standardRequest token ++ "/sendMessage"
-  postMessage = encode $ tMessageToPostMessage msg
-  reqWithHeaders =
-    HTTP.addRequestHeader "Content-Type" "application/json; charset=utf-8" req
-  reqWithBody = HTTP.setRequestBodyLBS postMessage reqWithHeaders
+  postMessage = tMessageToPostMessage msg
 
-makeCallbackQuery :: String -> TelegramMessage -> Request
-makeCallbackQuery token msg = Request reqWithBody postMessage
+makeCallbackQuery :: String -> TelegramMessage -> HTTP.Request
+makeCallbackQuery token msg = HTTP.setRequestBodyJSON postMessage req
  where
   req = HTTP.parseRequest_ $ "POST " ++ standardRequest token ++ "/sendMessage"
-  postMessage = encode $ tMessageToPostRepeatMessage msg
-  reqWithHeaders =
-    HTTP.addRequestHeader "Content-Type" "application/json; charset=utf-8" req
-  reqWithBody = HTTP.setRequestBodyLBS postMessage reqWithHeaders
+  postMessage = tMessageToPostRepeatMessage msg
 
-makeAnswerCallbackQuery :: String -> TelegramReaction -> Request
-makeAnswerCallbackQuery token tr = Request reqWithBody answerMessage
+makeAnswerCallbackQuery :: String -> TelegramReaction -> HTTP.Request
+makeAnswerCallbackQuery token tr = HTTP.setRequestBodyJSON answerMessage req
  where
   req =
     HTTP.parseRequest_
       $  "POST "
       ++ standardRequest token
       ++ "/answerCallbackQuery"
-  answerMessage = encode $ tReactionToCallbackAnswer tr
-  reqWithHeaders =
-    HTTP.addRequestHeader "Content-Type" "application/json; charset=utf-8" req
-  reqWithBody = HTTP.setRequestBodyLBS answerMessage reqWithHeaders
+  answerMessage = tReactionToCallbackAnswer tr

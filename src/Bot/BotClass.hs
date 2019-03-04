@@ -12,7 +12,6 @@ import qualified Control.Logger.Simple         as L
                                                 )
 import qualified Control.Concurrent            as CC
                                                 ( threadDelay )
-import           Bot.Request
 
 class (Monad m) => MonadLogger m where
   logDebug :: T.Text -> m ()
@@ -33,7 +32,7 @@ instance MonadDelay IO where
   delay = CC.threadDelay
 
 class MonadHTTP m where
-  http :: Request -> m (HTTP.Response LB.ByteString)
+  http :: HTTP.Request -> m (HTTP.Response LB.ByteString)
 
 instance  MonadHTTP IO where
-  http = HTTP.httpLBS . unwrapRequest
+  http = HTTP.httpLBS 
