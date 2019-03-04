@@ -1,7 +1,9 @@
 module Bot.BotClass where
 
+import qualified Network.HTTP.Simple           as HTTP
 import qualified Data.Text                     as T
                                                 ( Text(..) )
+import qualified Data.ByteString.Lazy          as LB
 import qualified Control.Logger.Simple         as L
                                                 ( logDebug
                                                 , logInfo
@@ -10,6 +12,7 @@ import qualified Control.Logger.Simple         as L
                                                 )
 import qualified Control.Concurrent            as CC
                                                 ( threadDelay )
+import           Bot.Request
 
 class (Monad m) => MonadLogger m where
   logDebug :: T.Text -> m ()
@@ -28,3 +31,9 @@ class (Monad m) => MonadDelay m where
 
 instance MonadDelay IO where
   delay = CC.threadDelay
+
+class MonadHTTP m where
+  http :: Request -> m (HTTP.Response LB.ByteString)
+
+instance  MonadHTTP IO where
+  http = HTTP.httpLBS . unwrapRequest

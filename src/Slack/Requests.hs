@@ -2,27 +2,29 @@
 
 module Slack.Requests where
 
-import           Network.HTTP.Simple
+import qualified Network.HTTP.Simple           as HTTP
 import           Slack.Models
-import qualified Data.ByteString               as B
-import           Data.CaseInsensitive
-import           Data.String
 import           Data.Aeson
 import           Serializer.Slack
 import           Helpers
+import           Bot.Request
+import           Data.String
 
 makeConHistory :: Maybe String -> String -> String -> Request
 makeConHistory timestamp token channel = case timestamp of
-  Nothing   -> setRequestQueryString (("limit", Just "1") : address) req
-  (Just ts) -> setRequestQueryString (("oldest", toQueryItem ts) : address) req
+  Nothing -> reqWithEmptyBody
+    $ HTTP.setRequestQueryString (("limit", Just "1") : address) req
+  (Just ts) -> reqWithEmptyBody
+    $ HTTP.setRequestQueryString (("oldest", toQueryItem ts) : address) req
  where
-  req     = parseRequest_ "GET https://slack.com/api/conversations.history"
+  req     = HTTP.parseRequest_ "GET https://slack.com/api/conversations.history"
   address = [("token", toQueryItem token), ("channel", toQueryItem channel)]
 
 makeGetReactions :: String -> String -> String -> Request
-makeGetReactions token channel repeatTs = setRequestQueryString query req
+makeGetReactions token channel repeatTs =
+  reqWithEmptyBody $ HTTP.setRequestQueryString query req
  where
-  req = parseRequest_ "GET https://slack.com/api/reactions.get"
+  req = HTTP.parseRequest_ "GET https://slack.com/api/reactions.get"
   query =
     [ ("token"    , toQueryItem token)
     , ("channel"  , toQueryItem channel)
@@ -30,10 +32,13 @@ makeGetReactions token channel repeatTs = setRequestQueryString query req
     ]
 
 makePostMessage :: String -> String -> SlackMessage -> Request
-makePostMessage token channel msg = setRequestBodyJSON postMessage
-                                                       reqWithHeaders
+makePostMessage token channel msg = Request reqWithBody postMessage
  where
-  req = parseRequest_ "POST https://slack.com/api/chat.postMessage"
-  reqWithHeaders =
-    addRequestHeader "Authorization" ("Bearer " <> fromString token) req
-  postMessage = sMessageToPostMessage msg channel
+  req = HTTP.parseRequest_ "POST https://slack.com/api/chat.postMessage"
+  reqWithHeaders = HTTP.setRequestHeaders
+    [ ("Content-Type" , "application/json; charset=utf-8")
+    , ("Authorization", "Bearer " <> fromString token)
+    ]
+    req
+  postMessage = encode $ sMessageToPostMessage msg channel
+  reqWithBody = HTTP.setRequestBodyLBS postMessage reqWithHeaders

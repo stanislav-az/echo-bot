@@ -54,4 +54,6 @@ instance MonadLogger (BotMonad e) where
 
 instance MonadDelay (BotMonad e) where
   delay = liftIO . delay
-  
+
+instance MonadHTTP (BotMonad e) where
+  http = liftIO . http

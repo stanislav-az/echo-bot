@@ -26,7 +26,12 @@ import           Text.Read                      ( readMaybe )
 import           Data.Maybe
 
 telegramBot
-  :: (MonadState TelegramEnv m, MonadIO m, MonadThrow m, MonadLogger m)
+  :: ( MonadState TelegramEnv m
+     , MonadHTTP m
+     , MonadThrow m
+     , MonadLogger m
+     
+     )
   => EchoBot m TelegramMessage TelegramReaction
 telegramBot = EchoBot { getUpdates     = tGetUpdates
                       , handleMsg      = tHandleMsg
@@ -34,13 +39,13 @@ telegramBot = EchoBot { getUpdates     = tGetUpdates
                       }
 
 tGetUpdates
-  :: (MonadState TelegramEnv m, MonadIO m, MonadThrow m)
+  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m)
   => m ([TelegramMessage], [TelegramReaction])
 tGetUpdates = do
   offset <- gets tLastUpdateId
   token  <- gets tToken
   let getUpdates = makeGetUpdates offset token
-  response <- httpLBS getUpdates
+  response <- http getUpdates
   checkResponseStatus response
   let unparsed = getResponseBody response
       parsed   = decode unparsed :: Maybe TResponse
@@ -57,7 +62,12 @@ tModifyIterator uid env@TelegramEnv {..} = maybe ifNothing ifJust tLastUpdateId
                 | otherwise        = pure ()
 
 tHandleMsg
-  :: (MonadState TelegramEnv m, MonadIO m, MonadThrow m, MonadLogger m)
+  :: ( MonadState TelegramEnv m
+     , MonadHTTP m
+     , MonadThrow m
+     , MonadLogger m
+     
+     )
   => TelegramMessage
   -> m ()
 tHandleMsg (TelegramMessage uid chatId "/help") = do
@@ -80,7 +90,7 @@ tHandleMsg msg@TelegramMessage {..} = do
   get >>= tModifyIterator tmUpdateId
 
 tHandleReaction
-  :: (MonadState TelegramEnv m, MonadIO m, MonadThrow m, MonadLogger m)
+  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => TelegramReaction
   -> m ()
 tHandleReaction tr@TelegramReaction {..} = do
@@ -90,14 +100,19 @@ tHandleReaction tr@TelegramReaction {..} = do
   token <- gets tToken
   let chatsRepeat' = HM.insert trChatId (fromJust btn) chatsRepeat
       req          = makeAnswerCallbackQuery token tr
-  response <- httpLBS req
+  response <- http req
   checkResponseStatus response
   logChatRepeat (texify trChatId) (T.pack trCallbackData)
   modify $ \s -> s { tRepeatMap = chatsRepeat' }
   get >>= tModifyIterator trUpdateId
 
 tSendMsg
-  :: (MonadState TelegramEnv m, MonadIO m, MonadThrow m, MonadLogger m)
+  :: ( MonadState TelegramEnv m
+     , MonadHTTP m
+     , MonadThrow m
+     , MonadLogger m
+     
+     )
   => TelegramMessage
   -> Bool
   -> m ()
@@ -106,6 +121,6 @@ tSendMsg msg@TelegramMessage {..} hasKeyboard = do
   let req = if hasKeyboard
         then makeCallbackQuery token msg
         else makeSendMessage token msg
-  response <- httpLBS req
+  response <- http req
   checkResponseStatus response
   logChatMessage (texify tmChatId) tmText

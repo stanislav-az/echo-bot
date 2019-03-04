@@ -25,7 +25,7 @@ import           Helpers
 import           Logging
 
 slackBot
-  :: (MonadState SlackEnv m, MonadIO m, MonadThrow m, MonadLogger m)
+  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => EchoBot m SlackMessage SlackReaction
 slackBot = EchoBot { getUpdates     = sGetUpdates
                    , handleMsg      = sHandleMsg
@@ -33,7 +33,7 @@ slackBot = EchoBot { getUpdates     = sGetUpdates
                    }
 
 sGetUpdates
-  :: (MonadState SlackEnv m, MonadIO m, MonadThrow m)
+  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m)
   => m ([SlackMessage], [SlackReaction])
 sGetUpdates =
   (,)
@@ -41,13 +41,13 @@ sGetUpdates =
     <*> (gets sRepeatTimestamp >>= maybe (pure []) sAcquireReactions)
 
 sAcquireMessages
-  :: (MonadState SlackEnv m, MonadIO m, MonadThrow m) => m [SlackMessage]
+  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m) => m [SlackMessage]
 sAcquireMessages = do
   timestamp <- gets sLastTimestamp
   token     <- gets sToken
   channel   <- gets sChannel
   let conHistory = makeConHistory timestamp token channel
-  responseHistory <- httpLBS conHistory
+  responseHistory <- http conHistory
   checkResponseStatus responseHistory
   let unparsedHistory = getResponseBody responseHistory
       parsedHistory   = decode unparsedHistory :: Maybe SResponse
@@ -61,14 +61,14 @@ sAcquireMessages = do
   pure ms
 
 sAcquireReactions
-  :: (MonadState SlackEnv m, MonadIO m, MonadThrow m)
+  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m)
   => String
   -> m [SlackReaction]
 sAcquireReactions repeatTs = do
   token   <- gets sToken
   channel <- gets sChannel
   let getReactions = makeGetReactions token channel repeatTs
-  responseReactions <- httpLBS getReactions
+  responseReactions <- http getReactions
   checkResponseStatus responseReactions
   let unparsedReactions = getResponseBody responseReactions
       parsedReactions   = decode unparsedReactions :: Maybe SPostResponse
@@ -79,7 +79,7 @@ sAcquireReactions repeatTs = do
   pure $ sPostResponseToReactions sPostResponse
 
 sHandleMsg
-  :: (MonadState SlackEnv m, MonadIO m, MonadThrow m, MonadLogger m)
+  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => SlackMessage
   -> m ()
 sHandleMsg (SlackMessage "_help"  ) = gets sHelpMsg >>= sSendMsg >> pure ()
@@ -103,14 +103,14 @@ sHandleReaction SlackReaction {..} = do
   logChatRepeat chat (texify srRepeatNumber)
 
 sSendMsg
-  :: (MonadState SlackEnv m, MonadIO m, MonadThrow m, MonadLogger m)
+  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => SlackMessage
   -> m LB.ByteString
 sSendMsg msg@SlackMessage {..} = do
   token   <- gets sToken
   channel <- gets sChannel
   let postMessage = makePostMessage token channel msg
-  response <- httpLBS postMessage
+  response <- http postMessage
   checkResponseStatus response
   let chat = T.pack channel
   logChatMessage chat smText
