@@ -31,8 +31,30 @@ class (Monad m) => MonadDelay m where
 instance MonadDelay IO where
   delay = CC.threadDelay
 
-class MonadHTTP m where
+class (Monad m) => MonadHTTP m where
   http :: HTTP.Request -> m (HTTP.Response LB.ByteString)
 
 instance  MonadHTTP IO where
-  http = HTTP.httpLBS 
+  http = HTTP.httpLBS
+
+class (Monad m) => HasSlackEnv m where
+  sEnvToken :: m String
+  sEnvChannel :: m String
+  sEnvHelpMsg :: m T.Text
+  sEnvRepeatMsg :: m T.Text
+
+class (Monad m) => HasSlackMod m where
+  sGetLastTimestamp :: m (Maybe String)
+  sGetRepeatNumber :: m Int
+  sGetRepeatTimestamp :: m (Maybe String)
+
+  sPutLastTimestamp :: Maybe String -> m ()
+  sPutRepeatNumber :: Int -> m ()
+  sPutRepeatTimestamp :: Maybe String -> m ()
+
+  sModLastTimestamp :: (Maybe String -> Maybe String ) -> m ()
+  sModLastTimestamp f = sGetLastTimestamp >>= (sPutLastTimestamp . f)
+  sModRepeatNumber :: (Int -> Int) -> m ()
+  sModRepeatNumber f = sGetRepeatNumber >>= (sPutRepeatNumber . f)
+  sModRepeatTimestamp :: (Maybe String -> Maybe String ) -> m ()
+  sModRepeatTimestamp f = sGetRepeatTimestamp >>= (sPutRepeatTimestamp . f)

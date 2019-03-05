@@ -1,55 +1,51 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Serializer.Slack where
 
 import qualified Data.Text                     as T
 import           Data.Aeson
 import           Slack.Models
+import           GHC.Generics
 
 data SResponse = SResponse {
   sResponseIsOk :: Bool,
   sResponseMsgs :: Maybe [SMessage]
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data SPostResponse = SPostResponse {
   sPostResponseIsOk :: Bool,
   sPostResponseMsg :: Maybe SMessage
-}
+} deriving (Eq, Show, Generic)
 
 data SMessage = SMessage {
   sMessageUser :: Maybe String,
   sMessageText :: T.Text,
   sMessageTimestamp :: String,
   sMessageReactions :: Maybe [SReaction]
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data SPostMessage = SPostMessage {
   sPostMessageChannel :: String,
   sPostMessageText :: T.Text
-}
-
-instance ToJSON SPostMessage where
-  toJSON SPostMessage {..} =
-    object ["channel" .= sPostMessageChannel, "text" .= sPostMessageText]
+} deriving (Eq, Show, Generic)
 
 data SReaction = SReaction {
   sReactionName :: String
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 instance FromJSON SResponse where
   parseJSON =
     withObject "SResponse" $ \v -> SResponse <$> v .: "ok" <*> v .:? "messages"
 
-emptySResponse :: SResponse
-emptySResponse = SResponse { sResponseIsOk = True, sResponseMsgs = Just [] }
+instance ToJSON SPostMessage where
+  toJSON SPostMessage {..} =
+    object ["channel" .= sPostMessageChannel, "text" .= sPostMessageText]
 
 instance FromJSON SPostResponse where
   parseJSON = withObject "SPostResponse"
     $ \v -> SPostResponse <$> v .: "ok" <*> v .:? "message"
-
-emptySPostResponse :: SPostResponse
-emptySPostResponse = SPostResponse False Nothing
 
 instance FromJSON SMessage where
   parseJSON = withObject "SMessage" $ \v ->
@@ -66,10 +62,16 @@ instance FromJSON SMessage where
 instance FromJSON SReaction where
   parseJSON = withObject "SReaction" $ \v -> SReaction <$> v .: "name"
 
+emptySPostResponse :: SPostResponse
+emptySPostResponse = SPostResponse False Nothing
+
+emptySResponse :: SResponse
+emptySResponse = SResponse { sResponseIsOk = True, sResponseMsgs = Just [] }
+
 sResponseToMsgs :: SResponse -> [SlackMessage]
 sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
  where
-  f ms SMessage{..} = case sMessageUser of
+  f ms SMessage {..} = case sMessageUser of
     Nothing -> ms
     _       -> SlackMessage sMessageTimestamp sMessageText : ms
 

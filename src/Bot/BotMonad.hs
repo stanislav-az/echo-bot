@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Bot.BotMonad where
 
@@ -57,3 +58,18 @@ instance MonadDelay (BotMonad e) where
 
 instance MonadHTTP (BotMonad e) where
   http = liftIO . http
+
+instance HasSlackEnv (BotMonad SlackEnv) where
+  sEnvToken = gets sToken
+  sEnvChannel = gets sChannel
+  sEnvHelpMsg = gets sHelpMsg
+  sEnvRepeatMsg = gets sRepeatMsg
+
+instance HasSlackMod (BotMonad SlackEnv) where
+  sGetLastTimestamp = gets sLastTimestamp 
+  sGetRepeatNumber = gets sRepeatNumber 
+  sGetRepeatTimestamp = gets sRepeatTimestamp 
+
+  sPutLastTimestamp x = modify $ \s -> s {sLastTimestamp = x}
+  sPutRepeatNumber x = modify $ \s -> s {sRepeatNumber = x}
+  sPutRepeatTimestamp x = modify $ \s -> s {sRepeatTimestamp = x}

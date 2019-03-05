@@ -25,7 +25,7 @@ import           Helpers
 import           Logging
 
 slackBot
-  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  :: (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackEnv m, HasSlackMod m)
   => EchoBot m SlackMessage SlackReaction
 slackBot = EchoBot { getUpdates     = sGetUpdates
                    , handleMsg      = sHandleMsg
@@ -33,19 +33,20 @@ slackBot = EchoBot { getUpdates     = sGetUpdates
                    }
 
 sGetUpdates
-  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m)
+  :: (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
   => m ([SlackMessage], [SlackReaction])
 sGetUpdates =
   (,)
     <$> sAcquireMessages
-    <*> (gets sRepeatTimestamp >>= maybe (pure []) sAcquireReactions)
+    <*> (sGetRepeatTimestamp >>= maybe (pure []) sAcquireReactions)
 
 sAcquireMessages
-  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m) => m [SlackMessage]
+  :: (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
+  => m [SlackMessage]
 sAcquireMessages = do
-  timestamp <- gets sLastTimestamp
-  token     <- gets sToken
-  channel   <- gets sChannel
+  timestamp <- sGetLastTimestamp
+  token     <- sEnvToken
+  channel   <- sEnvChannel
   let conHistory = makeConHistory timestamp token channel
   responseHistory <- http conHistory
   checkResponseStatus responseHistory
@@ -58,12 +59,10 @@ sAcquireMessages = do
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions
-  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m)
-  => String
-  -> m [SlackReaction]
+  :: (MonadHTTP m, MonadThrow m, HasSlackEnv m) => String -> m [SlackReaction]
 sAcquireReactions repeatTs = do
-  token   <- gets sToken
-  channel <- gets sChannel
+  token   <- sEnvToken
+  channel <- sEnvChannel
   let getReactions = makeGetReactions token channel repeatTs
   responseReactions <- http getReactions
   checkResponseStatus responseReactions
@@ -76,42 +75,43 @@ sAcquireReactions repeatTs = do
   pure $ sPostResponseToReactions sPostResponse
 
 sHandleMsg
-  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  :: (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackEnv m, HasSlackMod m)
   => SlackMessage
   -> m ()
 sHandleMsg (SlackMessage ts "_help") = do
-  hMsg <- gets sHelpMsg
+  hMsg <- sEnvHelpMsg
   sSendMsg $ SlackMessage ts hMsg
-  modify $ \s -> s { sLastTimestamp = Just ts }
+  sPutLastTimestamp $ Just ts
 sHandleMsg (SlackMessage ts "_repeat") = do
-  rMsg <- gets sRepeatMsg
-  r    <- gets sRepeatNumber
+  rMsg <- sEnvRepeatMsg
+  r    <- sGetRepeatNumber
   let rnMsg = SlackMessage ts (rMsg <> texify r)
   unparsed <- sSendMsg rnMsg
   let parsed   = decode unparsed :: Maybe SPostResponse
       repeatTs = sMessageTimestamp <$> (parsed >>= sPostResponseMsg)
   when (isNothing repeatTs) $ throwParseException unparsed
-  modify $ \s -> s { sRepeatTimestamp = repeatTs, sLastTimestamp = Just ts }
+  sPutRepeatTimestamp repeatTs
+  sPutLastTimestamp $ Just ts
 sHandleMsg msg@SlackMessage {..} = do
-  r <- gets sRepeatNumber
+  r <- sGetRepeatNumber
   replicateM_ r $ sSendMsg msg
-  modify $ \s -> s { sLastTimestamp = Just smTimestamp }
+  sPutLastTimestamp $ Just smTimestamp
 
 sHandleReaction
-  :: (MonadState SlackEnv m, MonadLogger m) => SlackReaction -> m ()
+  :: (MonadLogger m, HasSlackEnv m, HasSlackMod m) => SlackReaction -> m ()
 sHandleReaction SlackReaction {..} = do
-  modify
-    $ \s -> s { sRepeatNumber = srRepeatNumber, sRepeatTimestamp = Nothing }
-  chat <- T.pack <$> gets sChannel
+  sPutRepeatNumber srRepeatNumber
+  sPutRepeatTimestamp Nothing
+  chat <- T.pack <$> sEnvChannel
   logChatRepeat chat (texify srRepeatNumber)
 
 sSendMsg
-  :: (MonadState SlackEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  :: (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackEnv m)
   => SlackMessage
   -> m LB.ByteString
 sSendMsg msg@SlackMessage {..} = do
-  token   <- gets sToken
-  channel <- gets sChannel
+  token   <- sEnvToken
+  channel <- sEnvChannel
   let postMessage = makePostMessage token channel msg
   response <- http postMessage
   checkResponseStatus response

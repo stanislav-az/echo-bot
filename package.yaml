@@ -64,3 +64,5 @@ tests:
     - QuickCheck
     - quickcheck-instances
     - generic-random
+    - http-types
+    - http-client

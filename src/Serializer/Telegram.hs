@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Serializer.Telegram where
 
@@ -7,53 +8,54 @@ import qualified Data.Text                     as T
 import           Data.Aeson
 import           Telegram.Models
 import           Helpers
+import           GHC.Generics
 
 data TResponse = TResponse {
   tResponseIsOk :: Bool,
   tResponseResult :: [TUpdate]
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data TUpdate = TUpdate {
   tUpdateId :: Integer,
   tUpdateMessage :: Maybe TMessage,
   tUpdateCallbackQuery :: Maybe TCallbackQuery
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data TMessage = TMessage {
   tMessageId :: Integer,
   tMessageChat :: TChat,
   tMessageText :: Maybe T.Text
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data TChat = TChat {
   tChatId :: Integer
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data TPostRepeatMessage = TPostRepeatMessage {
   tRepeatMsgChatId :: Integer,
   tRepeatMsgText :: T.Text,
   tRepeatMsgReplyMarkup :: TKeyboard
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data TKeyboard = TKeyboard {
   tKeyboard :: [[TButton]]
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data TButton = TButton {
   tButtonText :: T.Text,
   tButtonCallbackData :: String
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data TCallbackQuery = TCallbackQuery {
   tCallbackQueryId :: String,
   tCallbackQueryMessage :: Maybe TMessage,
   tCallbackQueryData :: Maybe String
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data TCallbackAnswer = TCallbackAnswer {
   tCallbackAnswerQueryId :: String,
   tCallbackAnswerText :: T.Text
-}
+} deriving (Eq, Show, Generic)
 
 newtype TPostMessage = TPostMessage TelegramMessage
 

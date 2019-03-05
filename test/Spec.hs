@@ -1,12 +1,9 @@
-import TelegramTests
-import SlackTests
+import           TelegramTests
+import           SlackTests
 
 main :: IO ()
-main = do 
-    putStrLn "Running Telegram tests..."
-    runTelegramTests
-    putStrLn "Telegram tests done!"
-    putStrLn "Running Slack tests..."
-    runSlackTests
-    putStrLn "Slack tests done!"
-    
+main = do
+  putStrLn "Running Telegram tests..."
+  putStrLn "Telegram tests done!"
+  putStrLn "Running Slack tests..."
+  putStrLn "Slack tests done!"

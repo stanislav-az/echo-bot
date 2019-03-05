@@ -26,12 +26,7 @@ import           Text.Read                      ( readMaybe )
 import           Data.Maybe
 
 telegramBot
-  :: ( MonadState TelegramEnv m
-     , MonadHTTP m
-     , MonadThrow m
-     , MonadLogger m
-     
-     )
+  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => EchoBot m TelegramMessage TelegramReaction
 telegramBot = EchoBot { getUpdates     = tGetUpdates
                       , handleMsg      = tHandleMsg
@@ -62,12 +57,7 @@ tModifyIterator uid env@TelegramEnv {..} = maybe ifNothing ifJust tLastUpdateId
                 | otherwise        = pure ()
 
 tHandleMsg
-  :: ( MonadState TelegramEnv m
-     , MonadHTTP m
-     , MonadThrow m
-     , MonadLogger m
-     
-     )
+  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => TelegramMessage
   -> m ()
 tHandleMsg (TelegramMessage uid chatId "/help") = do
@@ -107,12 +97,7 @@ tHandleReaction tr@TelegramReaction {..} = do
   get >>= tModifyIterator trUpdateId
 
 tSendMsg
-  :: ( MonadState TelegramEnv m
-     , MonadHTTP m
-     , MonadThrow m
-     , MonadLogger m
-     
-     )
+  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => TelegramMessage
   -> Bool
   -> m ()
