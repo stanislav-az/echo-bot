@@ -59,7 +59,9 @@ sAcquireMessages = do
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions
-  :: (MonadHTTP m, MonadThrow m, HasSlackEnv m) => String -> m [SlackReaction]
+  :: (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
+  => String
+  -> m [SlackReaction]
 sAcquireReactions repeatTs = do
   token   <- sEnvToken
   channel <- sEnvChannel
@@ -72,6 +74,7 @@ sAcquireReactions repeatTs = do
     (throwParseException unparsedReactions >> pure emptySPostResponse)
     pure
     parsedReactions
+  when (hasReactions sPostResponse) $ sPutRepeatTimestamp Nothing
   pure $ sPostResponseToReactions sPostResponse
 
 sHandleMsg
@@ -101,7 +104,6 @@ sHandleReaction
   :: (MonadLogger m, HasSlackEnv m, HasSlackMod m) => SlackReaction -> m ()
 sHandleReaction SlackReaction {..} = do
   sPutRepeatNumber srRepeatNumber
-  sPutRepeatTimestamp Nothing
   chat <- T.pack <$> sEnvChannel
   logChatRepeat chat (texify srRepeatNumber)
 
@@ -119,3 +121,8 @@ sSendMsg msg@SlackMessage {..} = do
   logChatMessage chat smText
   pure $ getResponseBody response
 
+hasReactions :: SPostResponse -> Bool
+hasReactions sPostResponse = isJust mbReaction
+ where
+  mbReaction =
+    sPostResponseMsg sPostResponse >>= sMessageReactions >>= listToMaybe

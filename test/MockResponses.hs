@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module MockResponses where
 
@@ -18,17 +19,11 @@ data SlackResponseStack = SlackResponseStack {
   postMessageRes :: [ResponseLBS]
 } deriving Show
 
-emptySlackResponseStack :: SlackResponseStack
-emptySlackResponseStack = SlackResponseStack Nothing Nothing []
-
 data SlackRequestStack = SlackRequestStack {
   conHistoryReq :: [Client.Request] ,
   getReactionsReq :: [Client.Request] ,
   postMessageReq :: [Client.Request]
 } deriving Show
-
-emptySlackRequestStack :: SlackRequestStack
-emptySlackRequestStack = SlackRequestStack [] [] []
 
 data TestException = TooManyRequests
   deriving (Eq, Show)
@@ -67,3 +62,21 @@ makeOkResWithBody body = Client.Response
   , Client.responseCookieJar = Client.CJ { Client.expose = [] }
   , Client.responseClose'    = Client.ResponseClose $ pure ()
   }
+
+emptySlackRequestStack :: SlackRequestStack
+emptySlackRequestStack = SlackRequestStack [] [] []
+
+emptySlackResponseStack :: SlackResponseStack
+emptySlackResponseStack = SlackResponseStack Nothing Nothing []
+
+countConHistoryReqs :: SlackRequestStack -> Int
+countConHistoryReqs SlackRequestStack {..} = length conHistoryReq
+
+countGetReactionsReqs :: SlackRequestStack -> Int
+countGetReactionsReqs SlackRequestStack {..} = length getReactionsReq
+
+countPostMessageReqs :: SlackRequestStack -> Int
+countPostMessageReqs SlackRequestStack {..} = length postMessageReq
+
+countSlackReqs :: SlackRequestStack -> (Int,Int,Int)
+countSlackReqs stack = (countConHistoryReqs stack,  countGetReactionsReqs stack,  countPostMessageReqs stack)

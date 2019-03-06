@@ -66,3 +66,6 @@ tests:
     - generic-random
     - http-types
     - http-client
+    - tasty
+    - tasty-hspec
+    

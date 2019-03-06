@@ -39,6 +39,10 @@ instance FromJSON SResponse where
   parseJSON =
     withObject "SResponse" $ \v -> SResponse <$> v .: "ok" <*> v .:? "messages"
 
+instance ToJSON SResponse where
+  toJSON SResponse {..} =
+    object ["ok" .= sResponseIsOk, "messages" .= sResponseMsgs]
+
 instance ToJSON SPostMessage where
   toJSON SPostMessage {..} =
     object ["channel" .= sPostMessageChannel, "text" .= sPostMessageText]
@@ -46,6 +50,10 @@ instance ToJSON SPostMessage where
 instance FromJSON SPostResponse where
   parseJSON = withObject "SPostResponse"
     $ \v -> SPostResponse <$> v .: "ok" <*> v .:? "message"
+
+instance ToJSON SPostResponse where
+  toJSON SPostResponse {..} =
+    object ["ok" .= sPostResponseIsOk, "message" .= sPostResponseMsg]
 
 instance FromJSON SMessage where
   parseJSON = withObject "SMessage" $ \v ->
@@ -59,8 +67,19 @@ instance FromJSON SMessage where
       <*> v
       .:? "reactions"
 
+instance    ToJSON SMessage where
+  toJSON SMessage {..} = object
+    [ "user" .= sMessageUser
+    , "text" .= sMessageText
+    , "ts" .= sMessageTimestamp
+    , "reactions" .= sMessageReactions
+    ]
+
 instance FromJSON SReaction where
   parseJSON = withObject "SReaction" $ \v -> SReaction <$> v .: "name"
+
+instance    ToJSON SReaction where
+  toJSON SReaction {..} = object ["name" .= sReactionName]
 
 emptySPostResponse :: SPostResponse
 emptySPostResponse = SPostResponse False Nothing

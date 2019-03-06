@@ -1,9 +1,12 @@
-import           TelegramTests
-import           SlackTests
+module Main where
+
+import           Test.Tasty                     ( defaultMain
+                                                , testGroup
+                                                )
+import           Test.Tasty.Hspec               ( testSpec )
+import qualified SlackBotSpec                  as SS
 
 main :: IO ()
 main = do
-  putStrLn "Running Telegram tests..."
-  putStrLn "Telegram tests done!"
-  putStrLn "Running Slack tests..."
-  putStrLn "Slack tests done!"
+  ss <- testSpec "Slack Tests" SS.spec
+  defaultMain (testGroup "main tests" [ss])
