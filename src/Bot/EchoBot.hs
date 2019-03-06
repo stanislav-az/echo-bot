@@ -9,11 +9,11 @@ data EchoBot m msg react = EchoBot{
   handleReaction :: react -> m ()
 }
 
-goEchoBot :: MonadDelay f => EchoBot f msg r -> f b
-goEchoBot bot = forever oneCycle
- where
-  oneCycle = getUpdates bot >>= \(ms, rs) -> do
-    mapM_ (handleMsg bot)      ms
-    mapM_ (handleReaction bot) rs
-    delay 500000
+goEchoBot :: MonadDelay m => EchoBot m msg react -> m ()
+goEchoBot bot = forever $ botCycle bot
 
+botCycle :: MonadDelay m => EchoBot m msg react -> m ()
+botCycle bot = getUpdates bot >>= \(ms, rs) -> do
+  mapM_ (handleMsg bot)      ms
+  mapM_ (handleReaction bot) rs
+  delay 500000
