@@ -63,20 +63,45 @@ instance FromJSON TResponse where
   parseJSON =
     withObject "TResponse" $ \v -> TResponse <$> v .: "ok" <*> v .: "result"
 
+instance ToJSON TResponse where
+  toJSON TResponse {..} =
+    object ["ok" .= tResponseIsOk, "result" .= tResponseResult]
+
 instance FromJSON TUpdate where
   parseJSON = withObject "TUpdate" $ \v ->
     TUpdate <$> v .: "update_id" <*> v .:? "message" <*> v .:? "callback_query"
+
+instance ToJSON TUpdate where
+  toJSON TUpdate {..} = object
+    [ "update_id" .= tUpdateId
+    , "message" .= tUpdateMessage
+    , "callback_query" .= tUpdateCallbackQuery
+    ]
 
 instance FromJSON TMessage where
   parseJSON = withObject "TMessage"
     $ \v -> TMessage <$> v .: "message_id" <*> v .: "chat" <*> v .:? "text"
 
+instance ToJSON TMessage where
+  toJSON TMessage {..} = object
+    ["message_id" .= tMessageId, "chat" .= tMessageChat, "text" .= tMessageText]
+
 instance FromJSON TChat where
   parseJSON = withObject "TChat" $ \v -> TChat <$> v .: "id"
+
+instance ToJSON TChat where
+  toJSON TChat {..} = object ["id" .= tChatId]
 
 instance FromJSON TCallbackQuery where
   parseJSON = withObject "TCallbackQuery"
     $ \v -> TCallbackQuery <$> v .: "id" <*> v .:? "message" <*> v .:? "data"
+
+instance ToJSON TCallbackQuery where
+  toJSON TCallbackQuery {..} = object
+    [ "id" .= tCallbackQueryId
+    , "message" .= tCallbackQueryMessage
+    , "data" .= tCallbackQueryData
+    ]
 
 instance ToJSON TPostMessage where
   toJSON (TPostMessage TelegramMessage {..}) =

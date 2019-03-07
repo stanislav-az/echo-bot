@@ -75,8 +75,8 @@ makeOkResWithBody body = Client.Response
   , Client.responseClose'    = Client.ResponseClose $ pure ()
   }
 
-makeOkRes :: ResponseLBS
-makeOkRes = makeOkResWithBody LB.empty
+ok :: ResponseLBS
+ok = makeOkResWithBody LB.empty
 
 emptySlackRequestStack :: SlackRequestStack
 emptySlackRequestStack = SlackRequestStack [] [] []
@@ -105,3 +105,20 @@ emptyTelegramRequestStack = TelegramRequestStack [] [] []
 
 emptyTelegramResponseStack :: TelegramResponseStack
 emptyTelegramResponseStack = TelegramResponseStack Nothing [] []
+
+countGetUpdatesReqs :: TelegramRequestStack -> Int
+countGetUpdatesReqs TelegramRequestStack {..} = length getUpdatesReq
+
+countSendMessageReqs :: TelegramRequestStack -> Int
+countSendMessageReqs TelegramRequestStack {..} = length sendMessageReq
+
+countAnswerCallbackQueryReqs :: TelegramRequestStack -> Int
+countAnswerCallbackQueryReqs TelegramRequestStack {..} =
+  length answerCallbackQueryReq
+
+countTelegramReqs :: TelegramRequestStack -> (Int, Int, Int)
+countTelegramReqs stack =
+  ( countGetUpdatesReqs stack
+  , countSendMessageReqs stack
+  , countAnswerCallbackQueryReqs stack
+  )

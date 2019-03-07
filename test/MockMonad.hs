@@ -99,7 +99,7 @@ mockIOInitial = MockIO { mockLog                   = []
 
 runTestSlack :: MonadThrow m => MockMonad () -> m SlackRequestStack
 runTestSlack test = either throwM pure $ mockSlackRequestStack <$> resSlack
-  where resSlack = runMock mockIOInitial $ catch test botExceptionHandler
+  where resSlack = runMock mockIOInitial test
 
 testSlack :: SlackResponseStack -> MockMonad ()
 testSlack resStack = do
@@ -109,7 +109,7 @@ testSlack resStack = do
 runTestTelegram :: MonadThrow m => MockMonad () -> m TelegramRequestStack
 runTestTelegram test =
   either throwM pure $ mockTelegramRequestStack <$> resTelegram
-  where resTelegram = runMock mockIOInitial $ catch test botExceptionHandler
+  where resTelegram = runMock mockIOInitial test
 
 testTelegram :: TelegramResponseStack -> MockMonad ()
 testTelegram resStack = do
