@@ -4,65 +4,66 @@
 
 module Telegram.EchoBot
   ( telegramBot
-  )
-where
+  ) where
 
-import qualified Data.Text                     as T
-import qualified Data.HashMap.Strict           as HM
-import           Bot.EchoBot
-import           Telegram.Models
-import           Control.Monad.State
-import           Control.Monad.Catch
-import           Bot.BotClass
-import           Bot.BotMonad
-import           Bot.Exception
-import           Telegram.Requests
-import           Network.HTTP.Simple
-import           Serializer.Telegram
-import           Data.Aeson
-import           Logging
-import           Helpers
-import           Text.Read                      ( readMaybe )
-import           Data.Maybe
+import Bot.BotClass
+import Bot.BotMonad
+import Bot.EchoBot
+import Bot.Exception
+import Control.Monad.Catch
+import Control.Monad.State
+import Data.Aeson
+import qualified Data.HashMap.Strict as HM
+import Data.Maybe
+import qualified Data.Text as T
+import Helpers
+import Logging
+import Network.HTTP.Simple
+import Serializer.Telegram
+import Telegram.Models
+import Telegram.Requests
+import Text.Read (readMaybe)
 
-telegramBot
-  :: ( MonadHTTP m
+telegramBot ::
+     ( MonadHTTP m
      , MonadThrow m
      , MonadLogger m
      , HasTelegramEnv m
      , HasTelegramMod m
      )
   => EchoBot m TelegramMessage TelegramReaction
-telegramBot = EchoBot { getUpdates     = tGetUpdates
-                      , handleMsg      = tHandleMsg
-                      , handleReaction = tHandleReaction
-                      }
+telegramBot =
+  EchoBot
+    { getUpdates = tGetUpdates
+    , handleMsg = tHandleMsg
+    , handleReaction = tHandleReaction
+    }
 
-tGetUpdates
-  :: (MonadHTTP m, MonadThrow m, HasTelegramEnv m, HasTelegramMod m)
+tGetUpdates ::
+     (MonadHTTP m, MonadThrow m, HasTelegramEnv m, HasTelegramMod m)
   => m ([TelegramMessage], [TelegramReaction])
 tGetUpdates = do
   offset <- tGetLastUpdateId
-  token  <- tEnvToken
+  token <- tEnvToken
   let getUpdates = makeGetUpdates offset token
   response <- http getUpdates
   checkResponseStatus response
   let unparsed = getResponseBody response
-      parsed   = decode unparsed :: Maybe TResponse
-  tResponse <- maybe (throwParseException unparsed >> pure emptyTResponse)
-                     pure
-                     parsed
+      parsed = decode unparsed :: Maybe TResponse
+  tResponse <-
+    maybe (throwParseException unparsed >> pure emptyTResponse) pure parsed
   pure $ tResponseToModels tResponse
 
 tModifyIterator :: Integer -> Maybe Integer -> Maybe Integer
 tModifyIterator uid tLastUpdateId = maybe ifNothing ifJust tLastUpdateId
- where
-  ifNothing = Just $ uid + 1
-  ifJust offset | uid + 1 > offset = ifNothing
-                | otherwise        = tLastUpdateId
+  where
+    ifNothing = Just $ uid + 1
+    ifJust offset
+      | uid + 1 > offset = ifNothing
+      | otherwise = tLastUpdateId
 
-tHandleMsg
-  :: ( MonadHTTP m
+tHandleMsg ::
+     ( MonadHTTP m
      , MonadThrow m
      , MonadLogger m
      , HasTelegramEnv m
@@ -75,22 +76,22 @@ tHandleMsg (TelegramMessage uid chatId "/help") = do
   tSendMsg (TelegramMessage uid chatId mText) False
   tModLastUpdateId $ tModifyIterator uid
 tHandleMsg (TelegramMessage uid chatId "/repeat") = do
-  rMsg        <- tEnvRepeatMsg
-  r           <- tEnvRepeatNumber
+  rMsg <- tEnvRepeatMsg
+  r <- tEnvRepeatNumber
   chatsRepeat <- tGetRepeatMap
   let currR = HM.lookupDefault r chatId chatsRepeat
       rnMsg = TelegramMessage uid chatId $ rMsg <> texify currR
   tSendMsg rnMsg True
   tModLastUpdateId $ tModifyIterator uid
 tHandleMsg msg@TelegramMessage {..} = do
-  r           <- tEnvRepeatNumber
+  r <- tEnvRepeatNumber
   chatsRepeat <- tGetRepeatMap
   let currR = HM.lookupDefault r tmChatId chatsRepeat
   replicateM_ currR $ tSendMsg msg False
   tModLastUpdateId $ tModifyIterator tmUpdateId
 
-tHandleReaction
-  :: ( MonadHTTP m
+tHandleReaction ::
+     ( MonadHTTP m
      , MonadThrow m
      , MonadLogger m
      , HasTelegramEnv m
@@ -104,23 +105,24 @@ tHandleReaction tr@TelegramReaction {..} = do
   when (isNothing btn) $ throwM $ BadCallbackData trCallbackData
   token <- tEnvToken
   let chatsRepeat' = HM.insert trChatId (fromJust btn) chatsRepeat
-      req          = makeAnswerCallbackQuery token tr
+      req = makeAnswerCallbackQuery token tr
   response <- http req
   checkResponseStatus response
   tPutRepeatMap chatsRepeat'
   logChatRepeat (texify trChatId) (T.pack trCallbackData)
   tModLastUpdateId $ tModifyIterator trUpdateId
 
-tSendMsg
-  :: (MonadHTTP m, MonadThrow m, MonadLogger m, HasTelegramEnv m)
+tSendMsg ::
+     (MonadHTTP m, MonadThrow m, MonadLogger m, HasTelegramEnv m)
   => TelegramMessage
   -> Bool
   -> m ()
 tSendMsg msg@TelegramMessage {..} hasKeyboard = do
   token <- tEnvToken
-  let req = if hasKeyboard
-        then makeCallbackQuery token msg
-        else makeSendMessage token msg
+  let req =
+        if hasKeyboard
+          then makeCallbackQuery token msg
+          else makeSendMessage token msg
   response <- http req
   checkResponseStatus response
   logChatMessage (texify tmChatId) tmText

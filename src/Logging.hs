@@ -2,8 +2,8 @@
 
 module Logging where
 
-import           Bot.BotClass
-import qualified Data.Text                     as T
+import Bot.BotClass
+import qualified Data.Text as T
 
 logChatMessage :: MonadLogger m => T.Text -> T.Text -> m ()
 logChatMessage chat msg =
@@ -11,8 +11,5 @@ logChatMessage chat msg =
 
 logChatRepeat :: MonadLogger m => T.Text -> T.Text -> m ()
 logChatRepeat chat repeat =
-  logDebug
-    $  "A number of repeats was changed... For: "
-    <> chat
-    <> " To: "
-    <> repeat
+  logDebug $
+  "A number of repeats was changed... For: " <> chat <> " To: " <> repeat

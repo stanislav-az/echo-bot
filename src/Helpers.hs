@@ -1,23 +1,19 @@
 module Helpers where
 
-import           Data.Time.Clock.System         ( getSystemTime
-                                                , systemToUTCTime
-                                                )
-import           Data.Time.Clock                ( UTCTime(..) )
-import           Network.HTTP.Simple
-import qualified Data.Text                     as T
-                                                ( Text(..)
-                                                , pack
-                                                )
-import qualified Data.ByteString.Char8         as B8
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text as T (Text(..), pack)
+import Data.Time.Clock (UTCTime(..))
+import Data.Time.Clock.System (getSystemTime, systemToUTCTime)
+import Network.HTTP.Simple
 
 getCurrTime :: IO UTCTime
 getCurrTime = systemToUTCTime <$> getSystemTime
 
 isOkResponse :: Response a -> Bool
-isOkResponse response = case getResponseStatusCode response of
-  200 -> True
-  _   -> False
+isOkResponse response =
+  case getResponseStatusCode response of
+    200 -> True
+    _ -> False
 
 myID :: a -> a
 myID = id
