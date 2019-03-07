@@ -12,6 +12,7 @@ import qualified Control.Logger.Simple         as L
                                                 )
 import qualified Control.Concurrent            as CC
                                                 ( threadDelay )
+import qualified Data.HashMap.Strict           as HM
 
 class (Monad m) => MonadLogger m where
   logDebug :: T.Text -> m ()
@@ -58,3 +59,21 @@ class (Monad m) => HasSlackMod m where
   sModRepeatNumber f = sGetRepeatNumber >>= (sPutRepeatNumber . f)
   sModRepeatTimestamp :: (Maybe String -> Maybe String ) -> m ()
   sModRepeatTimestamp f = sGetRepeatTimestamp >>= (sPutRepeatTimestamp . f)
+
+class (Monad m) => HasTelegramEnv m where
+  tEnvToken :: m String
+  tEnvHelpMsg :: m T.Text
+  tEnvRepeatMsg :: m T.Text
+  tEnvRepeatNumber :: m Int
+
+class (Monad m) => HasTelegramMod m where
+  tGetLastUpdateId :: m (Maybe Integer)
+  tGetRepeatMap :: m (HM.HashMap Integer Int)
+
+  tPutLastUpdateId :: Maybe Integer -> m ()
+  tPutRepeatMap :: HM.HashMap Integer Int -> m ()
+
+  tModLastUpdateId :: (Maybe Integer -> Maybe Integer ) -> m ()
+  tModLastUpdateId f = tGetLastUpdateId >>= (tPutLastUpdateId . f)
+  tModRepeatMap :: (HM.HashMap Integer Int -> HM.HashMap Integer Int ) -> m ()
+  tModRepeatMap f = tGetRepeatMap >>= (tPutRepeatMap . f)

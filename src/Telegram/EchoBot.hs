@@ -26,7 +26,12 @@ import           Text.Read                      ( readMaybe )
 import           Data.Maybe
 
 telegramBot
-  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  :: ( MonadHTTP m
+     , MonadThrow m
+     , MonadLogger m
+     , HasTelegramEnv m
+     , HasTelegramMod m
+     )
   => EchoBot m TelegramMessage TelegramReaction
 telegramBot = EchoBot { getUpdates     = tGetUpdates
                       , handleMsg      = tHandleMsg
@@ -34,11 +39,11 @@ telegramBot = EchoBot { getUpdates     = tGetUpdates
                       }
 
 tGetUpdates
-  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m)
+  :: (MonadHTTP m, MonadThrow m, HasTelegramEnv m, HasTelegramMod m)
   => m ([TelegramMessage], [TelegramReaction])
 tGetUpdates = do
-  offset <- gets tLastUpdateId
-  token  <- gets tToken
+  offset <- tGetLastUpdateId
+  token  <- tEnvToken
   let getUpdates = makeGetUpdates offset token
   response <- http getUpdates
   checkResponseStatus response
@@ -49,60 +54,70 @@ tGetUpdates = do
                      parsed
   pure $ tResponseToModels tResponse
 
-tModifyIterator :: (MonadState TelegramEnv m) => Integer -> TelegramEnv -> m ()
-tModifyIterator uid env@TelegramEnv {..} = maybe ifNothing ifJust tLastUpdateId
+tModifyIterator :: Integer -> Maybe Integer -> Maybe Integer
+tModifyIterator uid tLastUpdateId = maybe ifNothing ifJust tLastUpdateId
  where
-  ifNothing = put env { tLastUpdateId = Just $ uid + 1 }
+  ifNothing = Just $ uid + 1
   ifJust offset | uid + 1 > offset = ifNothing
-                | otherwise        = pure ()
+                | otherwise        = tLastUpdateId
 
 tHandleMsg
-  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  :: ( MonadHTTP m
+     , MonadThrow m
+     , MonadLogger m
+     , HasTelegramEnv m
+     , HasTelegramMod m
+     )
   => TelegramMessage
   -> m ()
 tHandleMsg (TelegramMessage uid chatId "/help") = do
-  mText <- gets tHelpMsg
+  mText <- tEnvHelpMsg
   tSendMsg (TelegramMessage uid chatId mText) False
-  get >>= tModifyIterator uid
+  tModLastUpdateId $ tModifyIterator uid
 tHandleMsg (TelegramMessage uid chatId "/repeat") = do
-  rMsg        <- gets tRepeatMsg
-  r           <- gets tRepeatNumber
-  chatsRepeat <- gets tRepeatMap
+  rMsg        <- tEnvRepeatMsg
+  r           <- tEnvRepeatNumber
+  chatsRepeat <- tGetRepeatMap
   let currR = HM.lookupDefault r chatId chatsRepeat
       rnMsg = TelegramMessage uid chatId $ rMsg <> texify currR
   tSendMsg rnMsg True
-  get >>= tModifyIterator uid
+  tModLastUpdateId $ tModifyIterator uid
 tHandleMsg msg@TelegramMessage {..} = do
-  r           <- gets tRepeatNumber
-  chatsRepeat <- gets tRepeatMap
+  r           <- tEnvRepeatNumber
+  chatsRepeat <- tGetRepeatMap
   let currR = HM.lookupDefault r tmChatId chatsRepeat
   replicateM_ currR $ tSendMsg msg False
-  get >>= tModifyIterator tmUpdateId
+  tModLastUpdateId $ tModifyIterator tmUpdateId
 
 tHandleReaction
-  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  :: ( MonadHTTP m
+     , MonadThrow m
+     , MonadLogger m
+     , HasTelegramEnv m
+     , HasTelegramMod m
+     )
   => TelegramReaction
   -> m ()
 tHandleReaction tr@TelegramReaction {..} = do
-  chatsRepeat <- gets tRepeatMap
+  chatsRepeat <- tGetRepeatMap
   let btn = readMaybe trCallbackData :: Maybe Int
   when (isNothing btn) $ throwM $ BadCallbackData trCallbackData
-  token <- gets tToken
+  token <- tEnvToken
   let chatsRepeat' = HM.insert trChatId (fromJust btn) chatsRepeat
       req          = makeAnswerCallbackQuery token tr
   response <- http req
   checkResponseStatus response
+  tPutRepeatMap chatsRepeat'
   logChatRepeat (texify trChatId) (T.pack trCallbackData)
-  modify $ \s -> s { tRepeatMap = chatsRepeat' }
-  get >>= tModifyIterator trUpdateId
+  tModLastUpdateId $ tModifyIterator trUpdateId
 
 tSendMsg
-  :: (MonadState TelegramEnv m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  :: (MonadHTTP m, MonadThrow m, MonadLogger m, HasTelegramEnv m)
   => TelegramMessage
   -> Bool
   -> m ()
 tSendMsg msg@TelegramMessage {..} hasKeyboard = do
-  token <- gets tToken
+  token <- tEnvToken
   let req = if hasKeyboard
         then makeCallbackQuery token msg
         else makeSendMessage token msg

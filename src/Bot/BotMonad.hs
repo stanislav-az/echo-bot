@@ -60,16 +60,29 @@ instance MonadHTTP (BotMonad e) where
   http = liftIO . http
 
 instance HasSlackEnv (BotMonad SlackEnv) where
-  sEnvToken = gets sToken
-  sEnvChannel = gets sChannel
-  sEnvHelpMsg = gets sHelpMsg
+  sEnvToken     = gets sToken
+  sEnvChannel   = gets sChannel
+  sEnvHelpMsg   = gets sHelpMsg
   sEnvRepeatMsg = gets sRepeatMsg
 
 instance HasSlackMod (BotMonad SlackEnv) where
-  sGetLastTimestamp = gets sLastTimestamp 
-  sGetRepeatNumber = gets sRepeatNumber 
-  sGetRepeatTimestamp = gets sRepeatTimestamp 
+  sGetLastTimestamp   = gets sLastTimestamp
+  sGetRepeatNumber    = gets sRepeatNumber
+  sGetRepeatTimestamp = gets sRepeatTimestamp
 
-  sPutLastTimestamp x = modify $ \s -> s {sLastTimestamp = x}
-  sPutRepeatNumber x = modify $ \s -> s {sRepeatNumber = x}
-  sPutRepeatTimestamp x = modify $ \s -> s {sRepeatTimestamp = x}
+  sPutLastTimestamp x = modify $ \s -> s { sLastTimestamp = x }
+  sPutRepeatNumber x = modify $ \s -> s { sRepeatNumber = x }
+  sPutRepeatTimestamp x = modify $ \s -> s { sRepeatTimestamp = x }
+
+instance HasTelegramEnv (BotMonad TelegramEnv) where
+  tEnvToken        = gets tToken
+  tEnvHelpMsg      = gets tHelpMsg
+  tEnvRepeatMsg    = gets tRepeatMsg
+  tEnvRepeatNumber = gets tRepeatNumber
+
+instance HasTelegramMod (BotMonad TelegramEnv) where
+  tGetLastUpdateId = gets tLastUpdateId
+  tGetRepeatMap    = gets tRepeatMap
+
+  tPutLastUpdateId x = modify $ \s -> s { tLastUpdateId = x }
+  tPutRepeatMap x = modify $ \s -> s { tRepeatMap = x }

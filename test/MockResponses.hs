@@ -25,6 +25,18 @@ data SlackRequestStack = SlackRequestStack {
   postMessageReq :: [Client.Request]
 } deriving Show
 
+data TelegramResponseStack = TelegramResponseStack {
+  getUpdatesRes :: Maybe ResponseLBS ,
+  sendMessageRes :: [ResponseLBS] ,
+  answerCallbackQueryRes :: [ResponseLBS]
+} deriving Show
+
+data TelegramRequestStack = TelegramRequestStack {
+  getUpdatesReq :: [Client.Request] ,
+  sendMessageReq :: [Client.Request] ,
+  answerCallbackQueryReq :: [Client.Request]
+} deriving Show
+
 data TestException = TooManyRequests
   deriving (Eq, Show)
 
@@ -50,7 +62,7 @@ tooManyRequestsResponse = Client.Response
   , Client.responseClose'    = Client.ResponseClose $ pure ()
   }
 
-makeOkResWithBody :: LB.ByteString -> Client.Response LB.ByteString
+makeOkResWithBody :: LB.ByteString -> ResponseLBS
 makeOkResWithBody body = Client.Response
   { Client.responseStatus    = Types.status200
   , Client.responseVersion   = Types.http11
@@ -62,6 +74,9 @@ makeOkResWithBody body = Client.Response
   , Client.responseCookieJar = Client.CJ { Client.expose = [] }
   , Client.responseClose'    = Client.ResponseClose $ pure ()
   }
+
+makeOkRes :: ResponseLBS
+makeOkRes = makeOkResWithBody LB.empty
 
 emptySlackRequestStack :: SlackRequestStack
 emptySlackRequestStack = SlackRequestStack [] [] []
@@ -78,5 +93,15 @@ countGetReactionsReqs SlackRequestStack {..} = length getReactionsReq
 countPostMessageReqs :: SlackRequestStack -> Int
 countPostMessageReqs SlackRequestStack {..} = length postMessageReq
 
-countSlackReqs :: SlackRequestStack -> (Int,Int,Int)
-countSlackReqs stack = (countConHistoryReqs stack,  countGetReactionsReqs stack,  countPostMessageReqs stack)
+countSlackReqs :: SlackRequestStack -> (Int, Int, Int)
+countSlackReqs stack =
+  ( countConHistoryReqs stack
+  , countGetReactionsReqs stack
+  , countPostMessageReqs stack
+  )
+
+emptyTelegramRequestStack :: TelegramRequestStack
+emptyTelegramRequestStack = TelegramRequestStack [] [] []
+
+emptyTelegramResponseStack :: TelegramResponseStack
+emptyTelegramResponseStack = TelegramResponseStack Nothing [] []
