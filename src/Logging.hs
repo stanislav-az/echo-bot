@@ -2,8 +2,8 @@
 
 module Logging where
 
-import Bot.BotClass
-import qualified Data.Text as T
+import Bot.BotClass (MonadLogger(..))
+import qualified Data.Text as T (Text(..))
 
 logChatMessage :: MonadLogger m => T.Text -> T.Text -> m ()
 logChatMessage chat msg =

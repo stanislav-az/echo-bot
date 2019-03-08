@@ -2,8 +2,8 @@
 
 module MockConfig where
 
-import Bot.BotMonad
-import qualified Data.HashMap.Strict as HM
+import Bot.BotMonad (SlackEnv(..), TelegramEnv(..))
+import qualified Data.HashMap.Strict as HM (empty)
 
 getTelegramEnv :: TelegramEnv
 getTelegramEnv =

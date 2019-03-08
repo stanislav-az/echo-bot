@@ -2,12 +2,17 @@
 
 module Slack.Requests where
 
-import Data.Aeson
-import Data.String
-import Helpers
+import Data.String (fromString)
+import Helpers (toQueryItem)
 import qualified Network.HTTP.Simple as HTTP
-import Serializer.Slack
-import Slack.Models
+  ( Request(..)
+  , addRequestHeader
+  , parseRequest_
+  , setRequestBodyJSON
+  , setRequestQueryString
+  )
+import Serializer.Slack (sMessageToPostMessage)
+import Slack.Models (SlackMessage(..))
 
 makeConHistory :: Maybe String -> String -> String -> HTTP.Request
 makeConHistory timestamp token channel =

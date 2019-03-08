@@ -1,10 +1,10 @@
 module Slack.Start where
 
-import Bot.BotMonad
-import Bot.EchoBot
-import Bot.Exception
-import Config
-import Control.Monad.Catch
+import Bot.BotMonad (runBot)
+import Bot.EchoBot (goEchoBot)
+import Bot.Exception (exceptionHandlers)
+import Config (makeSlackEnv)
+import Control.Monad.Catch (catches)
 import Slack.EchoBot
 
 startSlackBot :: IO ()

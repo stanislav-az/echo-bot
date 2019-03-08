@@ -1,7 +1,7 @@
 module RequestBody where
 
-import qualified Data.ByteString.Lazy as LB
-import qualified Network.HTTP.Conduit as HTTP
+import qualified Data.ByteString.Lazy as LB (ByteString(..))
+import qualified Network.HTTP.Conduit as HTTP (Request(..), RequestBody(..))
 
 getReqBodyLBS :: HTTP.Request -> LB.ByteString
 getReqBodyLBS req =

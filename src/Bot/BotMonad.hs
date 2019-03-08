@@ -7,9 +7,7 @@ import Bot.BotClass
 import Control.Monad.Catch
 import Control.Monad.State
 import qualified Data.HashMap.Strict as HM
-import qualified Data.Text as T
-import Slack.Models
-import Telegram.Models
+import qualified Data.Text as T (Text(..))
 
 data TelegramEnv = TelegramEnv
   { tLastUpdateId :: Maybe Integer

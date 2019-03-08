@@ -2,10 +2,18 @@
 
 module Telegram.Requests where
 
-import Data.Aeson
-import Helpers
+import Helpers (showToQueryItem)
 import qualified Network.HTTP.Simple as HTTP
+  ( Request(..)
+  , parseRequest_
+  , setRequestBodyJSON
+  , setRequestQueryString
+  )
 import Serializer.Telegram
+  ( tMessageToPostMessage
+  , tMessageToPostRepeatMessage
+  , tReactionToCallbackAnswer
+  )
 import Telegram.Models
 
 standardRequest :: String -> String

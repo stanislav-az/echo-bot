@@ -7,22 +7,22 @@ module Telegram.EchoBot
   ) where
 
 import Bot.BotClass
-import Bot.BotMonad
-import Bot.EchoBot
-import Bot.Exception
+import Bot.BotMonad (BotException(..))
+import Bot.EchoBot (EchoBot(..))
+import Bot.Exception (checkResponseStatus, throwParseException)
+import Control.Monad (replicateM_, when)
 import Control.Monad.Catch
-import Control.Monad.State
-import Data.Aeson
-import qualified Data.HashMap.Strict as HM
-import Data.Maybe
-import qualified Data.Text as T
-import Helpers
-import Logging
-import Network.HTTP.Simple
+import qualified Data.Aeson as JSON (decode)
+import qualified Data.HashMap.Strict as HM (insert, lookupDefault)
+import Data.Maybe (fromJust, isNothing)
+import qualified Data.Text as T (pack)
+import Helpers (texify)
+import Logging (logChatMessage, logChatRepeat)
+import qualified Network.HTTP.Simple as HTTP (getResponseBody)
 import Serializer.Telegram
 import Telegram.Models
 import Telegram.Requests
-import Text.Read (readMaybe)
+import qualified Text.Read as T (readMaybe)
 
 telegramBot ::
      ( MonadHTTP m
@@ -48,8 +48,8 @@ tGetUpdates = do
   let getUpdates = makeGetUpdates offset token
   response <- http getUpdates
   checkResponseStatus response
-  let unparsed = getResponseBody response
-      parsed = decode unparsed :: Maybe TResponse
+  let unparsed = HTTP.getResponseBody response
+      parsed = JSON.decode unparsed :: Maybe TResponse
   tResponse <-
     maybe (throwParseException unparsed >> pure emptyTResponse) pure parsed
   pure $ tResponseToModels tResponse
@@ -101,7 +101,7 @@ tHandleReaction ::
   -> m ()
 tHandleReaction tr@TelegramReaction {..} = do
   chatsRepeat <- tGetRepeatMap
-  let btn = readMaybe trCallbackData :: Maybe Int
+  let btn = T.readMaybe trCallbackData :: Maybe Int
   when (isNothing btn) $ throwM $ BadCallbackData trCallbackData
   token <- tEnvToken
   let chatsRepeat' = HM.insert trChatId (fromJust btn) chatsRepeat

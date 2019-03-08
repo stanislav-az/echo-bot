@@ -4,11 +4,15 @@
 module MockResponses where
 
 import Control.Monad.Catch
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString as B (ByteString(..))
+import qualified Data.ByteString.Lazy as LB (ByteString(..), empty)
 import qualified Network.HTTP.Client.Internal as Client
-import qualified Network.HTTP.Types as Types
-import RequestBody
+  ( CookieJar(..)
+  , Request(..)
+  , Response(..)
+  , ResponseClose(..)
+  )
+import qualified Network.HTTP.Types as Types (http11, status404, status429,status200)
 
 type ResponseLBS = Client.Response LB.ByteString
 

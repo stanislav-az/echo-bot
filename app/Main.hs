@@ -2,11 +2,11 @@
 
 module Main where
 
-import Bot.BotClass
-import Config
+import Bot.BotClass (logInfo)
+import Config (Bot(..), getByName, getLogConfig, loadConfig)
 import qualified Control.Logger.Simple as L (withGlobalLogging)
-import Slack.Start
-import Telegram.Start
+import Slack.Start (startSlackBot)
+import Telegram.Start (startTelegramBot)
 
 main :: IO ()
 main = do

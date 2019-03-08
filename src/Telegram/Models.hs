@@ -1,6 +1,6 @@
 module Telegram.Models where
 
-import qualified Data.Text as T
+import qualified Data.Text as T (Text(..))
 
 data TelegramMessage = TelegramMessage
   { tmUpdateId :: Integer

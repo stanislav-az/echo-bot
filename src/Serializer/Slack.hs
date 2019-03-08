@@ -1,39 +1,37 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Serializer.Slack where
 
 import Data.Aeson
-import qualified Data.Text as T
-import GHC.Generics
+import qualified Data.Text as T (Text(..))
 import Slack.Models
 
 data SResponse = SResponse
   { sResponseIsOk :: Bool
   , sResponseMsgs :: Maybe [SMessage]
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 data SPostResponse = SPostResponse
   { sPostResponseIsOk :: Bool
   , sPostResponseMsg :: Maybe SMessage
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 data SMessage = SMessage
   { sMessageUser :: Maybe String
   , sMessageText :: T.Text
   , sMessageTimestamp :: String
   , sMessageReactions :: Maybe [SReaction]
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 data SPostMessage = SPostMessage
   { sPostMessageChannel :: String
   , sPostMessageText :: T.Text
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 data SReaction = SReaction
   { sReactionName :: String
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 instance FromJSON SResponse where
   parseJSON =

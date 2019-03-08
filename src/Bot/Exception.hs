@@ -1,11 +1,15 @@
 module Bot.Exception where
 
-import Bot.BotClass
-import Bot.BotMonad
-import Control.Monad
+import Bot.BotClass (MonadLogger(..))
+import Bot.BotMonad (BotException(..))
+import Control.Monad (unless)
 import Control.Monad.Catch
-import Helpers
-import Network.HTTP.Simple
+import Helpers (isOkResponse, texify)
+import qualified Network.HTTP.Simple as HTTP
+  ( Response(..)
+  , getResponseBody
+  , getResponseStatus
+  )
 
 exceptionHandlers :: MonadLogger m => [Handler m ()]
 exceptionHandlers = [Handler botExceptionHandler, Handler otherExceptionHandler]
@@ -16,13 +20,13 @@ botExceptionHandler = logWarn . texify
 otherExceptionHandler :: MonadLogger m => SomeException -> m ()
 otherExceptionHandler = logError . texify
 
-checkResponseStatus :: (MonadThrow f, Show a) => Response a -> f ()
+checkResponseStatus :: (MonadThrow f, Show a) => HTTP.Response a -> f ()
 checkResponseStatus response =
   unless (isOkResponse response) $
   throwM $ ResponseException (status ++ " " ++ body)
   where
-    status = show $ getResponseStatus response
-    body = show $ getResponseBody response
+    status = show $ HTTP.getResponseStatus response
+    body = show $ HTTP.getResponseBody response
 
 throwParseException :: (MonadThrow f, Show a) => a -> f ()
 throwParseException = throwM . NoParse . show

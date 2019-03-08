@@ -7,10 +7,14 @@ import qualified Control.Logger.Simple as L
   , logInfo
   , logWarn
   )
-import qualified Data.ByteString.Lazy as LB
-import qualified Data.HashMap.Strict as HM
+import qualified Data.ByteString.Lazy as LB (ByteString(..))
+import qualified Data.HashMap.Strict as HM (HashMap(..))
 import qualified Data.Text as T (Text(..))
 import qualified Network.HTTP.Simple as HTTP
+  ( Request(..)
+  , Response(..)
+  , httpLBS
+  )
 
 class (Monad m) =>
       MonadLogger m

@@ -1,7 +1,7 @@
 module Bot.EchoBot where
 
-import Bot.BotClass
-import Control.Monad
+import Bot.BotClass (MonadDelay(..))
+import Control.Monad (forever)
 
 data EchoBot m msg react = EchoBot
   { getUpdates :: m ([msg], [react])

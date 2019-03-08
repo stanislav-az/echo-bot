@@ -4,11 +4,11 @@ module TelegramBotSpec
   ( spec
   ) where
 
-import qualified Bot.BotMonad as BM
-import Data.Aeson
-import MockMonad
+import qualified Bot.BotMonad as BM (BotException(..))
+import qualified Data.Aeson as JSON (encode)
+import MockMonad (MockIO(..), runTestTelegram, testTelegram)
 import MockResponses
-import RequestBody
+import RequestBody (getReqBodyLBS)
 import Serializer.Telegram
 import Telegram.Models
 import Test.Hspec (Spec(..), describe, it, shouldBe, shouldThrow)
@@ -17,99 +17,101 @@ spec :: Spec
 spec = do
   describe "Get updates capability" $ do
     it "Should work with empty updates list" $ do
-      let getU = makeOkResWithBody $ encode emptyTResponse
+      let getU = makeOkResWithBody $ JSON.encode emptyTResponse
           stack = TelegramResponseStack (Just getU) [] []
       res <- runTestTelegram $ testTelegram stack
       countGetUpdatesReqs res `shouldBe` 1
     it "Should work with typical updates list" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd1]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd1]
           stack = TelegramResponseStack (Just getU) [ok] []
       res <- runTestTelegram $ testTelegram stack
       countGetUpdatesReqs res `shouldBe` 1
     it "Should work with callback query in updates list" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd4]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd4]
           stack = TelegramResponseStack (Just getU) [] [ok]
       res <- runTestTelegram $ testTelegram stack
       countGetUpdatesReqs res `shouldBe` 1
     it "Should get updates each cycle" $ do
-      let getU1 = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd1]
+      let getU1 = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd1]
           getU2 =
-            makeOkResWithBody $ encode $ putUpdatesInTResponse [upd7, upd8]
+            makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd7, upd8]
           stack1 = TelegramResponseStack (Just getU1) [ok] []
           stack2 = TelegramResponseStack (Just getU2) (replicate 2 ok) []
       res <- runTestTelegram $ testTelegram stack1 >> testTelegram stack2
       countGetUpdatesReqs res `shouldBe` 2
   describe "Send messages capability" $ do
     it "Should ignore empty updates list" $ do
-      let getU = makeOkResWithBody $ encode emptyTResponse
+      let getU = makeOkResWithBody $ JSON.encode emptyTResponse
           stack = TelegramResponseStack (Just getU) [] []
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 0
     it "Should ignore messages without text" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd2]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd2]
           stack = TelegramResponseStack (Just getU) [] []
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 0
     it "Should ignore empty updates" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd3]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd3]
           stack = TelegramResponseStack (Just getU) [] []
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 0
     it "Should send messages back with the same text" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd1]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd1]
           stack = TelegramResponseStack (Just getU) [ok] []
-          body = encode $ tMessageToPostMessage telegramMsg1
+          body = JSON.encode $ tMessageToPostMessage telegramMsg1
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe` [body]
     it "Should send specific help message on /help command" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd9]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd9]
           stack = TelegramResponseStack (Just getU) [ok] []
-          body = encode $ tMessageToPostMessage telegramMsg9
+          body = JSON.encode $ tMessageToPostMessage telegramMsg9
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe` [body]
     it
       "Should send specific repeat message on /repeat command and append current repeat number to it" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd10]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd10]
           stack = TelegramResponseStack (Just getU) [ok] []
-          body = encode $ tMessageToPostRepeatMessage telegramMsg10
+          body = JSON.encode $ tMessageToPostRepeatMessage telegramMsg10
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe` [body]
     it "Should respond with messages in correct order" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd7, upd8]
+      let getU =
+            makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd7, upd8]
           stack = TelegramResponseStack (Just getU) (replicate 2 ok) []
-          body1 = encode $ tMessageToPostMessage telegramMsg7
-          body2 = encode $ tMessageToPostMessage telegramMsg8
+          body1 = JSON.encode $ tMessageToPostMessage telegramMsg7
+          body2 = JSON.encode $ tMessageToPostMessage telegramMsg8
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 2
       (take 2 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe` [body2, body1]
     it "Should respond with messages each cycle when there are updates" $ do
-      let getU1 = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd1]
+      let getU1 = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd1]
           getU2 =
-            makeOkResWithBody $ encode $ putUpdatesInTResponse [upd7, upd8]
+            makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd7, upd8]
           stack1 = TelegramResponseStack (Just getU1) [ok] []
           stack2 = TelegramResponseStack (Just getU2) (replicate 2 ok) []
-          body1 = encode $ tMessageToPostMessage telegramMsg1
-          body2 = encode $ tMessageToPostMessage telegramMsg7
-          body3 = encode $ tMessageToPostMessage telegramMsg8
+          body1 = JSON.encode $ tMessageToPostMessage telegramMsg1
+          body2 = JSON.encode $ tMessageToPostMessage telegramMsg7
+          body3 = JSON.encode $ tMessageToPostMessage telegramMsg8
       res <- runTestTelegram $ testTelegram stack1 >> testTelegram stack2
       countSendMessageReqs res `shouldBe` 3
       (take 3 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe`
         [body3, body2, body1]
     it "Should repeat messages a choosen number of times" $ do
-      let getU1 = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd1]
-          getU2 = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd10]
-          getU3 = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd4]
-          getU4 = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd8]
+      let getU1 = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd1]
+          getU2 =
+            makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd10]
+          getU3 = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd4]
+          getU4 = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd8]
           stack1 = TelegramResponseStack (Just getU1) [ok] []
           stack2 = TelegramResponseStack (Just getU2) [ok] []
           stack3 = TelegramResponseStack (Just getU3) [] [ok]
           stack4 = TelegramResponseStack (Just getU4) (replicate 3 ok) []
-          body1 = encode $ tMessageToPostMessage telegramMsg1
-          body2 = encode $ tMessageToPostRepeatMessage telegramMsg10
-          body3 = encode $ tMessageToPostMessage telegramMsg8
+          body1 = JSON.encode $ tMessageToPostMessage telegramMsg1
+          body2 = JSON.encode $ tMessageToPostRepeatMessage telegramMsg10
+          body3 = JSON.encode $ tMessageToPostMessage telegramMsg8
       res <-
         runTestTelegram $
         testTelegram stack1 >> testTelegram stack2 >> testTelegram stack3 >>
@@ -121,22 +123,22 @@ spec = do
         [body3, body3, body3, body2, body1]
   describe "Answer callbacks capability" $ do
     it "Should ignore empty updates list" $ do
-      let getU = makeOkResWithBody $ encode emptyTResponse
+      let getU = makeOkResWithBody $ JSON.encode emptyTResponse
           stack = TelegramResponseStack (Just getU) [] []
       res <- runTestTelegram $ testTelegram stack
       countAnswerCallbackQueryReqs res `shouldBe` 0
     it "Should work with typical callback query" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd4]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd4]
           stack = TelegramResponseStack (Just getU) [] [ok]
       res <- runTestTelegram $ testTelegram stack
       countAnswerCallbackQueryReqs res `shouldBe` 1
     it "Should ignore callbacks with no message" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd5]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd5]
           stack = TelegramResponseStack (Just getU) [] []
       res <- runTestTelegram $ testTelegram stack
       countAnswerCallbackQueryReqs res `shouldBe` 0
     it "Should throw exception on callback with random data" $ do
-      let getU = makeOkResWithBody $ encode $ putUpdatesInTResponse [upd6]
+      let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd6]
           stack = TelegramResponseStack (Just getU) [] []
           res = runTestTelegram $ testTelegram stack
           badCallbackData (BM.BadCallbackData "random_data") = True

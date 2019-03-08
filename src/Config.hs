@@ -2,7 +2,7 @@
 
 module Config where
 
-import Bot.BotMonad
+import Bot.BotMonad (SlackEnv(..), TelegramEnv(..))
 import qualified Control.Logger.Simple as L (LogConfig(..))
 import qualified Data.Configurator as C
   ( autoConfig
@@ -17,9 +17,7 @@ import qualified Data.Configurator.Types as C
   , Value(..)
   , Worth(..)
   )
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Text as T
-import Slack.Models
+import qualified Data.HashMap.Strict as HM (empty)
 import qualified System.Directory as D (createDirectoryIfMissing)
 import qualified System.FilePath.Posix as D (takeDirectory)
 

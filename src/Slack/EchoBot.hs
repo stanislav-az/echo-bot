@@ -7,18 +7,17 @@ module Slack.EchoBot
   ) where
 
 import Bot.BotClass
-import Bot.BotMonad
-import Bot.EchoBot
-import Bot.Exception
+import Bot.EchoBot (EchoBot(..))
+import Bot.Exception (checkResponseStatus, throwParseException)
+import Control.Monad (replicateM_, when)
 import Control.Monad.Catch
-import Control.Monad.State
-import Data.Aeson
-import qualified Data.ByteString.Lazy as LB
-import Data.Maybe
-import qualified Data.Text as T
-import Helpers
-import Logging
-import Network.HTTP.Simple
+import qualified Data.Aeson as JSON (decode)
+import qualified Data.ByteString.Lazy as LB (ByteString(..))
+import Data.Maybe (isJust, isNothing, listToMaybe)
+import qualified Data.Text as T (pack)
+import Helpers (texify)
+import Logging (logChatMessage, logChatRepeat)
+import qualified Network.HTTP.Simple as HTTP (getResponseBody)
 import Serializer.Slack
 import Slack.Models
 import Slack.Requests
@@ -50,8 +49,8 @@ sAcquireMessages = do
   let conHistory = makeConHistory timestamp token channel
   responseHistory <- http conHistory
   checkResponseStatus responseHistory
-  let unparsedHistory = getResponseBody responseHistory
-      parsedHistory = decode unparsedHistory :: Maybe SResponse
+  let unparsedHistory = HTTP.getResponseBody responseHistory
+      parsedHistory = JSON.decode unparsedHistory
   sResponse <-
     maybe
       (throwParseException unparsedHistory >> pure emptySResponse)
@@ -69,8 +68,8 @@ sAcquireReactions repeatTs = do
   let getReactions = makeGetReactions token channel repeatTs
   responseReactions <- http getReactions
   checkResponseStatus responseReactions
-  let unparsedReactions = getResponseBody responseReactions
-      parsedReactions = decode unparsedReactions :: Maybe SPostResponse
+  let unparsedReactions = HTTP.getResponseBody responseReactions
+      parsedReactions = JSON.decode unparsedReactions
   sPostResponse <-
     maybe
       (throwParseException unparsedReactions >> pure emptySPostResponse)
@@ -92,7 +91,7 @@ sHandleMsg (SlackMessage ts "_repeat") = do
   r <- sGetRepeatNumber
   let rnMsg = SlackMessage ts (rMsg <> texify r)
   unparsed <- sSendMsg rnMsg
-  let parsed = decode unparsed :: Maybe SPostResponse
+  let parsed = JSON.decode unparsed
       repeatTs = sMessageTimestamp <$> (parsed >>= sPostResponseMsg)
   when (isNothing repeatTs) $ throwParseException unparsed
   sPutRepeatTimestamp repeatTs
@@ -121,7 +120,7 @@ sSendMsg msg@SlackMessage {..} = do
   checkResponseStatus response
   let chat = T.pack channel
   logChatMessage chat smText
-  pure $ getResponseBody response
+  pure $ HTTP.getResponseBody response
 
 hasReactions :: SPostResponse -> Bool
 hasReactions sPostResponse = isJust mbReaction
