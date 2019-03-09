@@ -35,9 +35,7 @@ slackBot =
 sGetUpdates ::
      (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
   => m ([SlackMessage], [SlackReaction])
-sGetUpdates =
-  (,) <$> sAcquireMessages <*>
-  (sGetRepeatTimestamp >>= maybe (pure []) sAcquireReactions)
+sGetUpdates = (,) <$> sAcquireMessages <*> sAcquireReactions
 
 sAcquireMessages ::
      (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
@@ -60,23 +58,24 @@ sAcquireMessages = do
 
 sAcquireReactions ::
      (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
-  => String
-  -> m [SlackReaction]
-sAcquireReactions repeatTs = do
-  token <- sEnvToken
-  channel <- sEnvChannel
-  let getReactions = makeGetReactions token channel repeatTs
-  responseReactions <- http getReactions
-  checkResponseStatus responseReactions
-  let unparsedReactions = HTTP.getResponseBody responseReactions
-      parsedReactions = JSON.decode unparsedReactions
-  sPostResponse <-
-    maybe
-      (throwParseException unparsedReactions >> pure emptySPostResponse)
-      pure
-      parsedReactions
-  when (hasReactions sPostResponse) $ sPutRepeatTimestamp Nothing
-  pure $ sPostResponseToReactions sPostResponse
+  => m [SlackReaction]
+sAcquireReactions = sGetRepeatTimestamp >>= maybe (pure []) acquire
+  where
+    acquire repeatTs = do
+      token <- sEnvToken
+      channel <- sEnvChannel
+      let getReactions = makeGetReactions token channel repeatTs
+      responseReactions <- http getReactions
+      checkResponseStatus responseReactions
+      let unparsedReactions = HTTP.getResponseBody responseReactions
+          parsedReactions = JSON.decode unparsedReactions
+      sPostResponse <-
+        maybe
+          (throwParseException unparsedReactions >> pure emptySPostResponse)
+          pure
+          parsedReactions
+      when (hasReactions sPostResponse) $ sPutRepeatTimestamp Nothing
+      pure $ sPostResponseToReactions sPostResponse
 
 sHandleMsg ::
      (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackEnv m, HasSlackMod m)
