@@ -28,7 +28,7 @@ telegramBot ::
      ( MonadHTTP m
      , MonadThrow m
      , MonadLogger m
-     , HasTelegramEnv m
+     , HasTelegramConst m
      , HasTelegramMod m
      )
   => EchoBot m TelegramMessage TelegramReaction
@@ -40,11 +40,11 @@ telegramBot =
     }
 
 tGetUpdates ::
-     (MonadHTTP m, MonadThrow m, HasTelegramEnv m, HasTelegramMod m)
+     (MonadHTTP m, MonadThrow m, HasTelegramConst m, HasTelegramMod m)
   => m ([TelegramMessage], [TelegramReaction])
 tGetUpdates = do
   offset <- tGetLastUpdateId
-  token <- tEnvToken
+  token <- tConstToken <$> getTelegramConst
   let getUpdates = makeGetUpdates offset token
   response <- http getUpdates
   checkResponseStatus response
@@ -66,25 +66,25 @@ tHandleMsg ::
      ( MonadHTTP m
      , MonadThrow m
      , MonadLogger m
-     , HasTelegramEnv m
+     , HasTelegramConst m
      , HasTelegramMod m
      )
   => TelegramMessage
   -> m ()
 tHandleMsg (TelegramMessage uid chatId "/help") = do
-  mText <- tEnvHelpMsg
+  mText <- tConstHelpMsg <$> getTelegramConst
   tSendMsg (TelegramMessage uid chatId mText) False
   tModLastUpdateId $ tModifyIterator uid
 tHandleMsg (TelegramMessage uid chatId "/repeat") = do
-  rMsg <- tEnvRepeatMsg
-  r <- tEnvRepeatNumber
+  rMsg <- tConstRepeatMsg <$> getTelegramConst
+  r <- tConstRepeatNumber <$> getTelegramConst
   chatsRepeat <- tGetRepeatMap
   let currR = HM.lookupDefault r chatId chatsRepeat
       rnMsg = TelegramMessage uid chatId $ rMsg <> textify currR
   tSendMsg rnMsg True
   tModLastUpdateId $ tModifyIterator uid
 tHandleMsg msg@TelegramMessage {..} = do
-  r <- tEnvRepeatNumber
+  r <- tConstRepeatNumber <$> getTelegramConst
   chatsRepeat <- tGetRepeatMap
   let currR = HM.lookupDefault r tmChatId chatsRepeat
   replicateM_ currR $ tSendMsg msg False
@@ -94,7 +94,7 @@ tHandleReaction ::
      ( MonadHTTP m
      , MonadThrow m
      , MonadLogger m
-     , HasTelegramEnv m
+     , HasTelegramConst m
      , HasTelegramMod m
      )
   => TelegramReaction
@@ -103,7 +103,7 @@ tHandleReaction tr@TelegramReaction {..} = do
   chatsRepeat <- tGetRepeatMap
   let btn = T.readMaybe trCallbackData :: Maybe Int
   when (isNothing btn) $ throwM $ BadCallbackData trCallbackData
-  token <- tEnvToken
+  token <- tConstToken <$> getTelegramConst
   let chatsRepeat' = HM.insert trChatId (fromJust btn) chatsRepeat
       req = makeAnswerCallbackQuery token tr
   response <- http req
@@ -113,12 +113,12 @@ tHandleReaction tr@TelegramReaction {..} = do
   tModLastUpdateId $ tModifyIterator trUpdateId
 
 tSendMsg ::
-     (MonadHTTP m, MonadThrow m, MonadLogger m, HasTelegramEnv m)
+     (MonadHTTP m, MonadThrow m, MonadLogger m, HasTelegramConst m)
   => TelegramMessage
   -> Bool
   -> m ()
 tSendMsg msg@TelegramMessage {..} hasKeyboard = do
-  token <- tEnvToken
+  token <- tConstToken <$> getTelegramConst
   let req =
         if hasKeyboard
           then makeCallbackQuery token msg

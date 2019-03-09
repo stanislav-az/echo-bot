@@ -46,13 +46,17 @@ class (Monad m) =>
 instance MonadHTTP IO where
   http = HTTP.httpLBS
 
+data SlackConst = SlackConst
+  { sConstToken :: String
+  , sConstChannel :: String
+  , sConstHelpMsg :: T.Text
+  , sConstRepeatMsg :: T.Text
+  } deriving (Eq, Show)
+
 class (Monad m) =>
-      HasSlackEnv m
+      HasSlackConst m
   where
-  sEnvToken :: m String
-  sEnvChannel :: m String
-  sEnvHelpMsg :: m T.Text
-  sEnvRepeatMsg :: m T.Text
+  getSlackConst :: m SlackConst
 
 class (Monad m) =>
       HasSlackMod m
@@ -70,13 +74,17 @@ class (Monad m) =>
   sModRepeatTimestamp :: (Maybe String -> Maybe String) -> m ()
   sModRepeatTimestamp f = sGetRepeatTimestamp >>= (sPutRepeatTimestamp . f)
 
+data TelegramConst = TelegramConst
+  { tConstToken :: String
+  , tConstHelpMsg :: T.Text
+  , tConstRepeatMsg :: T.Text
+  , tConstRepeatNumber :: Int
+  } deriving (Eq, Show)
+
 class (Monad m) =>
-      HasTelegramEnv m
+      HasTelegramConst m
   where
-  tEnvToken :: m String
-  tEnvHelpMsg :: m T.Text
-  tEnvRepeatMsg :: m T.Text
-  tEnvRepeatNumber :: m Int
+  getTelegramConst :: m TelegramConst
 
 class (Monad m) =>
       HasTelegramMod m

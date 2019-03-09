@@ -10,20 +10,14 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T (Text(..))
 
 data TelegramEnv = TelegramEnv
-  { tLastUpdateId :: Maybe Integer
-  , tToken :: String
-  , tHelpMsg :: T.Text
-  , tRepeatMsg :: T.Text
-  , tRepeatNumber :: Int
+  { tTelegramConst :: TelegramConst
+  , tLastUpdateId :: Maybe Integer
   , tRepeatMap :: HM.HashMap Integer Int
   } deriving (Eq, Show)
 
 data SlackEnv = SlackEnv
-  { sLastTimestamp :: Maybe String
-  , sToken :: String
-  , sChannel :: String
-  , sHelpMsg :: T.Text
-  , sRepeatMsg :: T.Text
+  { sSlackConst :: SlackConst
+  , sLastTimestamp :: Maybe String
   , sRepeatNumber :: Int
   , sRepeatTimestamp :: Maybe String
   } deriving (Eq, Show)
@@ -70,11 +64,8 @@ instance MonadDelay (BotMonad e) where
 instance MonadHTTP (BotMonad e) where
   http = liftIO . http
 
-instance HasSlackEnv (BotMonad SlackEnv) where
-  sEnvToken = gets sToken
-  sEnvChannel = gets sChannel
-  sEnvHelpMsg = gets sHelpMsg
-  sEnvRepeatMsg = gets sRepeatMsg
+instance HasSlackConst (BotMonad SlackEnv) where
+  getSlackConst = gets sSlackConst
 
 instance HasSlackMod (BotMonad SlackEnv) where
   sGetLastTimestamp = gets sLastTimestamp
@@ -84,11 +75,8 @@ instance HasSlackMod (BotMonad SlackEnv) where
   sPutRepeatNumber x = modify $ \s -> s {sRepeatNumber = x}
   sPutRepeatTimestamp x = modify $ \s -> s {sRepeatTimestamp = x}
 
-instance HasTelegramEnv (BotMonad TelegramEnv) where
-  tEnvToken = gets tToken
-  tEnvHelpMsg = gets tHelpMsg
-  tEnvRepeatMsg = gets tRepeatMsg
-  tEnvRepeatNumber = gets tRepeatNumber
+instance HasTelegramConst (BotMonad TelegramEnv) where
+  getTelegramConst = gets tTelegramConst
 
 instance HasTelegramMod (BotMonad TelegramEnv) where
   tGetLastUpdateId = gets tLastUpdateId

@@ -23,7 +23,7 @@ import Slack.Models
 import Slack.Requests
 
 slackBot ::
-     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackEnv m, HasSlackMod m)
+     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m, HasSlackMod m)
   => EchoBot m SlackMessage SlackReaction
 slackBot =
   EchoBot
@@ -33,17 +33,17 @@ slackBot =
     }
 
 sGetUpdates ::
-     (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
+     (MonadHTTP m, MonadThrow m, HasSlackConst m, HasSlackMod m)
   => m ([SlackMessage], [SlackReaction])
 sGetUpdates = (,) <$> sAcquireMessages <*> sAcquireReactions
 
 sAcquireMessages ::
-     (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
+     (MonadHTTP m, MonadThrow m, HasSlackConst m, HasSlackMod m)
   => m [SlackMessage]
 sAcquireMessages = do
   timestamp <- sGetLastTimestamp
-  token <- sEnvToken
-  channel <- sEnvChannel
+  token <- sConstToken <$> getSlackConst
+  channel <- sConstChannel <$> getSlackConst
   let conHistory = makeConHistory timestamp token channel
   responseHistory <- http conHistory
   checkResponseStatus responseHistory
@@ -57,13 +57,13 @@ sAcquireMessages = do
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions ::
-     (MonadHTTP m, MonadThrow m, HasSlackEnv m, HasSlackMod m)
+     (MonadHTTP m, MonadThrow m, HasSlackConst m, HasSlackMod m)
   => m [SlackReaction]
 sAcquireReactions = sGetRepeatTimestamp >>= maybe (pure []) acquire
   where
     acquire repeatTs = do
-      token <- sEnvToken
-      channel <- sEnvChannel
+      token <- sConstToken <$> getSlackConst
+      channel <- sConstChannel <$> getSlackConst
       let getReactions = makeGetReactions token channel repeatTs
       responseReactions <- http getReactions
       checkResponseStatus responseReactions
@@ -78,15 +78,15 @@ sAcquireReactions = sGetRepeatTimestamp >>= maybe (pure []) acquire
       pure $ sPostResponseToReactions sPostResponse
 
 sHandleMsg ::
-     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackEnv m, HasSlackMod m)
+     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m, HasSlackMod m)
   => SlackMessage
   -> m ()
 sHandleMsg (SlackMessage ts "_help") = do
-  hMsg <- sEnvHelpMsg
+  hMsg <- sConstHelpMsg <$> getSlackConst 
   sSendMsg $ SlackMessage ts hMsg
   sPutLastTimestamp $ Just ts
 sHandleMsg (SlackMessage ts "_repeat") = do
-  rMsg <- sEnvRepeatMsg
+  rMsg <- sConstRepeatMsg <$> getSlackConst 
   r <- sGetRepeatNumber
   let rnMsg = SlackMessage ts (rMsg <> textify r)
   unparsed <- sSendMsg rnMsg
@@ -101,19 +101,19 @@ sHandleMsg msg@SlackMessage {..} = do
   sPutLastTimestamp $ Just smTimestamp
 
 sHandleReaction ::
-     (MonadLogger m, HasSlackEnv m, HasSlackMod m) => SlackReaction -> m ()
+     (MonadLogger m, HasSlackConst m, HasSlackMod m) => SlackReaction -> m ()
 sHandleReaction SlackReaction {..} = do
   sPutRepeatNumber srRepeatNumber
-  chat <- T.pack <$> sEnvChannel
+  chat <- T.pack . sConstChannel <$> getSlackConst
   logChatRepeat chat (textify srRepeatNumber)
 
 sSendMsg ::
-     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackEnv m)
+     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m)
   => SlackMessage
   -> m LB.ByteString
 sSendMsg msg@SlackMessage {..} = do
-  token <- sEnvToken
-  channel <- sEnvChannel
+  token <- sConstToken <$> getSlackConst
+  channel <- sConstChannel <$> getSlackConst
   let postMessage = makePostMessage token channel msg
   response <- http postMessage
   checkResponseStatus response

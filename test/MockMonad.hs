@@ -62,11 +62,8 @@ instance Bot.MonadLogger MockMonad where
 instance Bot.MonadHTTP MockMonad where
   http req = route req $ routes req
 
-instance Bot.HasSlackEnv MockMonad where
-  sEnvToken = Bot.sToken <$> gets mockSlackEnv
-  sEnvChannel = Bot.sChannel <$> gets mockSlackEnv
-  sEnvHelpMsg = Bot.sHelpMsg <$> gets mockSlackEnv
-  sEnvRepeatMsg = Bot.sRepeatMsg <$> gets mockSlackEnv
+instance Bot.HasSlackConst MockMonad where
+  getSlackConst = Bot.sSlackConst <$> gets mockSlackEnv
 
 instance Bot.HasSlackMod MockMonad where
   sGetLastTimestamp = Bot.sLastTimestamp <$> gets mockSlackEnv
@@ -82,11 +79,8 @@ instance Bot.HasSlackMod MockMonad where
     modify $ \s@MockIO {..} ->
       s {mockSlackEnv = mockSlackEnv {Bot.sRepeatTimestamp = x}}
 
-instance Bot.HasTelegramEnv MockMonad where
-  tEnvToken = Bot.tToken <$> gets mockTelegramEnv
-  tEnvHelpMsg = Bot.tHelpMsg <$> gets mockTelegramEnv
-  tEnvRepeatMsg = Bot.tRepeatMsg <$> gets mockTelegramEnv
-  tEnvRepeatNumber = Bot.tRepeatNumber <$> gets mockTelegramEnv
+instance Bot.HasTelegramConst MockMonad where
+  getTelegramConst = Bot.tTelegramConst <$> gets mockTelegramEnv
 
 instance Bot.HasTelegramMod MockMonad where
   tGetLastUpdateId = Bot.tLastUpdateId <$> gets mockTelegramEnv
