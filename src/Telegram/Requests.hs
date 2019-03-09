@@ -2,13 +2,15 @@
 
 module Telegram.Requests where
 
-import Helpers (showToQueryItem)
+import qualified Data.ByteString.Char8 as B8 (pack)
+import Ext.Network.HTTP.Types.URI (showToQueryItem)
 import qualified Network.HTTP.Simple as HTTP
   ( Request(..)
   , parseRequest_
   , setRequestBodyJSON
   , setRequestQueryString
   )
+import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
 import Serializer.Telegram
   ( tMessageToPostMessage
   , tMessageToPostRepeatMessage
@@ -22,14 +24,16 @@ standardRequest = ("https://api.telegram.org/bot" ++)
 makeGetUpdates :: Maybe Integer -> String -> HTTP.Request
 makeGetUpdates offset token =
   case offset of
-    Nothing -> HTTP.setRequestQueryString query req
+    Nothing -> HTTP.setRequestQueryString (Q.simpleQueryToQuery query) req
     (Just o) ->
-      HTTP.setRequestQueryString (("offset", showToQueryItem o) : query) req
+      HTTP.setRequestQueryString
+        (Q.simpleQueryToQuery $ ("offset", showToQueryItem o) : query)
+        req
   where
     req = HTTP.parseRequest_ $ "GET " ++ standardRequest token ++ "/getUpdates"
     query =
-      [ ("timeout", Just "10")
-      , ("allowed_updates[]", Just "callback_query,message")
+      [ ("timeout", B8.pack "10")
+      , ("allowed_updates[]", B8.pack "callback_query,message")
       ]
 
 makeSendMessage :: String -> TelegramMessage -> HTTP.Request

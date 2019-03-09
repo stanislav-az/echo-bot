@@ -32,6 +32,7 @@ dependencies:
 - filepath
 - exceptions
 - unordered-containers
+- http-types
 
 library:
   source-dirs: src
@@ -58,7 +59,6 @@ tests:
     dependencies:
     - saz-echo-bot
     - hspec
-    - http-types
     - http-client
     - tasty
     - tasty-hspec

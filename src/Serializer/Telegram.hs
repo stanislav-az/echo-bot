@@ -5,7 +5,7 @@ module Serializer.Telegram where
 
 import Data.Aeson
 import qualified Data.Text as T (Text(..), pack)
-import Helpers (texify)
+import Ext.Data.Text (textify)
 import Telegram.Models
 
 data TResponse = TResponse
@@ -167,7 +167,7 @@ tMessageToPostRepeatMessage TelegramMessage {..} =
 tStandardKeyboard :: TKeyboard
 tStandardKeyboard = TKeyboard {tKeyboard = [button <$> [1 .. 5]]}
   where
-    button i = TButton {tButtonText = texify i, tButtonCallbackData = show i}
+    button i = TButton {tButtonText = textify i, tButtonCallbackData = show i}
 
 tReactionToCallbackAnswer :: TelegramReaction -> TCallbackAnswer
 tReactionToCallbackAnswer TelegramReaction {..} = TCallbackAnswer trId msg

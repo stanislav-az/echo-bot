@@ -16,7 +16,7 @@ import qualified Data.Aeson as JSON (decode)
 import qualified Data.HashMap.Strict as HM (insert, lookupDefault)
 import Data.Maybe (fromJust, isNothing)
 import qualified Data.Text as T (pack)
-import Helpers (texify)
+import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
 import qualified Network.HTTP.Simple as HTTP (getResponseBody)
 import Serializer.Telegram
@@ -80,7 +80,7 @@ tHandleMsg (TelegramMessage uid chatId "/repeat") = do
   r <- tEnvRepeatNumber
   chatsRepeat <- tGetRepeatMap
   let currR = HM.lookupDefault r chatId chatsRepeat
-      rnMsg = TelegramMessage uid chatId $ rMsg <> texify currR
+      rnMsg = TelegramMessage uid chatId $ rMsg <> textify currR
   tSendMsg rnMsg True
   tModLastUpdateId $ tModifyIterator uid
 tHandleMsg msg@TelegramMessage {..} = do
@@ -109,7 +109,7 @@ tHandleReaction tr@TelegramReaction {..} = do
   response <- http req
   checkResponseStatus response
   tPutRepeatMap chatsRepeat'
-  logChatRepeat (texify trChatId) (T.pack trCallbackData)
+  logChatRepeat (textify trChatId) (T.pack trCallbackData)
   tModLastUpdateId $ tModifyIterator trUpdateId
 
 tSendMsg ::
@@ -125,4 +125,4 @@ tSendMsg msg@TelegramMessage {..} hasKeyboard = do
           else makeSendMessage token msg
   response <- http req
   checkResponseStatus response
-  logChatMessage (texify tmChatId) tmText
+  logChatMessage (textify tmChatId) tmText

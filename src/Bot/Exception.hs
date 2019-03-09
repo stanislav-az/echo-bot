@@ -4,7 +4,8 @@ import Bot.BotClass (MonadLogger(..))
 import Bot.BotMonad (BotException(..))
 import Control.Monad (unless)
 import Control.Monad.Catch
-import Helpers (isOkResponse, texify)
+import Ext.Data.Text (textify)
+import Ext.Network.HTTP.Types.Status (isOkResponse)
 import qualified Network.HTTP.Simple as HTTP
   ( Response(..)
   , getResponseBody
@@ -15,10 +16,10 @@ exceptionHandlers :: MonadLogger m => [Handler m ()]
 exceptionHandlers = [Handler botExceptionHandler, Handler otherExceptionHandler]
 
 botExceptionHandler :: MonadLogger m => BotException -> m ()
-botExceptionHandler = logWarn . texify
+botExceptionHandler = logWarn . textify
 
 otherExceptionHandler :: MonadLogger m => SomeException -> m ()
-otherExceptionHandler = logError . texify
+otherExceptionHandler = logError . textify
 
 checkResponseStatus :: (MonadThrow f, Show a) => HTTP.Response a -> f ()
 checkResponseStatus response =

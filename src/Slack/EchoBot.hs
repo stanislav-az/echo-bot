@@ -15,7 +15,7 @@ import qualified Data.Aeson as JSON (decode)
 import qualified Data.ByteString.Lazy as LB (ByteString(..))
 import Data.Maybe (isJust, isNothing, listToMaybe)
 import qualified Data.Text as T (pack)
-import Helpers (texify)
+import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
 import qualified Network.HTTP.Simple as HTTP (getResponseBody)
 import Serializer.Slack
@@ -89,7 +89,7 @@ sHandleMsg (SlackMessage ts "_help") = do
 sHandleMsg (SlackMessage ts "_repeat") = do
   rMsg <- sEnvRepeatMsg
   r <- sGetRepeatNumber
-  let rnMsg = SlackMessage ts (rMsg <> texify r)
+  let rnMsg = SlackMessage ts (rMsg <> textify r)
   unparsed <- sSendMsg rnMsg
   let parsed = JSON.decode unparsed
       repeatTs = sMessageTimestamp <$> (parsed >>= sPostResponseMsg)
@@ -106,7 +106,7 @@ sHandleReaction ::
 sHandleReaction SlackReaction {..} = do
   sPutRepeatNumber srRepeatNumber
   chat <- T.pack <$> sEnvChannel
-  logChatRepeat chat (texify srRepeatNumber)
+  logChatRepeat chat (textify srRepeatNumber)
 
 sSendMsg ::
      (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackEnv m)

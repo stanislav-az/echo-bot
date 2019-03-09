@@ -2,8 +2,8 @@
 
 module Slack.Requests where
 
+import qualified Data.ByteString.Char8 as B8 (pack)
 import Data.String (fromString)
-import Helpers (toQueryItem)
 import qualified Network.HTTP.Simple as HTTP
   ( Request(..)
   , addRequestHeader
@@ -11,28 +11,35 @@ import qualified Network.HTTP.Simple as HTTP
   , setRequestBodyJSON
   , setRequestQueryString
   )
+import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
 import Serializer.Slack (sMessageToPostMessage)
 import Slack.Models (SlackMessage(..))
 
 makeConHistory :: Maybe String -> String -> String -> HTTP.Request
 makeConHistory timestamp token channel =
   case timestamp of
-    Nothing -> HTTP.setRequestQueryString (("limit", Just "1") : address) req
+    Nothing ->
+      HTTP.setRequestQueryString
+        (Q.simpleQueryToQuery $ ("limit", "1") : address)
+        req
     (Just ts) ->
-      HTTP.setRequestQueryString (("oldest", toQueryItem ts) : address) req
+      HTTP.setRequestQueryString
+        (Q.simpleQueryToQuery $ ("oldest", B8.pack ts) : address)
+        req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/conversations.history"
-    address = [("token", toQueryItem token), ("channel", toQueryItem channel)]
+    address = [("token", B8.pack token), ("channel", B8.pack channel)]
 
 makeGetReactions :: String -> String -> String -> HTTP.Request
 makeGetReactions token channel repeatTs = HTTP.setRequestQueryString query req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/reactions.get"
     query =
-      [ ("token", toQueryItem token)
-      , ("channel", toQueryItem channel)
-      , ("timestamp", toQueryItem repeatTs)
-      ]
+      Q.simpleQueryToQuery
+        [ ("token", B8.pack token)
+        , ("channel", B8.pack channel)
+        , ("timestamp", B8.pack repeatTs)
+        ]
 
 makePostMessage :: String -> String -> SlackMessage -> HTTP.Request
 makePostMessage token channel msg =
