@@ -87,24 +87,15 @@ sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
     f ms SMessage {..} =
       case sMessageUser of
         Nothing -> ms
-        _ -> SlackMessage sMessageTimestamp False sMessageText : ms
+        _ -> SlackMessage sMessageTimestamp sMessageText : ms
 
 sPostResponseToReactions :: SPostResponse -> [SlackReaction]
 sPostResponseToReactions sPostResponse =
-  SlackReaction <$> parseReactionNames reactionNames
+  maybe [] (fmap SlackReaction) reactionNames
   where
     reactionNames =
       fmap sReactionName <$>
       (sPostResponseMsg sPostResponse >>= sMessageReactions)
-    parseReactionNames (Just [w]) =
-      case w of
-        "one" -> [1]
-        "two" -> [2]
-        "three" -> [3]
-        "four" -> [4]
-        "five" -> [5]
-        _ -> []
-    parseReactionNames _ = []
 
 sMessageToPostMessage :: SlackMessage -> String -> SPostMessage
 sMessageToPostMessage SlackMessage {..} channel =

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Slack.Requests where
 
@@ -13,32 +14,33 @@ import qualified Network.HTTP.Simple as HTTP
   )
 import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
 import Serializer.Slack (sMessageToPostMessage)
-import Slack.Models (SlackMessage(..))
+import Slack.Models (SlackFlag(..), SlackIterator(..), SlackMessage(..))
 
-makeConHistory :: Maybe String -> String -> String -> HTTP.Request
+makeConHistory :: Maybe SlackIterator -> String -> String -> HTTP.Request
 makeConHistory timestamp token channel =
   case timestamp of
     Nothing ->
       HTTP.setRequestQueryString
         (Q.simpleQueryToQuery $ ("limit", "1") : address)
         req
-    (Just ts) ->
+    (Just SlackIterator {..}) ->
       HTTP.setRequestQueryString
-        (Q.simpleQueryToQuery $ ("oldest", B8.pack ts) : address)
+        (Q.simpleQueryToQuery $ ("oldest", B8.pack lastTimestamp) : address)
         req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/conversations.history"
     address = [("token", B8.pack token), ("channel", B8.pack channel)]
 
-makeGetReactions :: String -> String -> String -> HTTP.Request
-makeGetReactions token channel repeatTs = HTTP.setRequestQueryString query req
+makeGetReactions :: String -> String -> SlackFlag -> HTTP.Request
+makeGetReactions token channel SlackFlag {..} =
+  HTTP.setRequestQueryString query req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/reactions.get"
     query =
       Q.simpleQueryToQuery
         [ ("token", B8.pack token)
         , ("channel", B8.pack channel)
-        , ("timestamp", B8.pack repeatTs)
+        , ("timestamp", B8.pack sfRepeatTimestamp)
         ]
 
 makePostMessage :: String -> String -> SlackMessage -> HTTP.Request

@@ -48,11 +48,20 @@ class (Monad m) =>
 instance MonadHTTP IO where
   http = HTTP.httpLBS
 
+data BotConst = BotConst
+  { helpMsg :: T.Text
+  , repeatMsg :: T.Text
+  , defaultRepeatNumber :: Int
+  } deriving (Eq, Show)
+
+class (Monad m) =>
+      HasBotConst m
+  where
+  getBotConst :: m BotConst
+
 data SlackConst = SlackConst
   { sConstToken :: String
   , sConstChannel :: String
-  , sConstHelpMsg :: T.Text
-  , sConstRepeatMsg :: T.Text
   } deriving (Eq, Show)
 
 class (Monad m) =>
@@ -78,9 +87,6 @@ class (Monad m) =>
 
 data TelegramConst = TelegramConst
   { tConstToken :: String
-  , tConstHelpMsg :: T.Text
-  , tConstRepeatMsg :: T.Text
-  , tConstRepeatNumber :: Int
   } deriving (Eq, Show)
 
 class (Monad m) =>
@@ -119,7 +125,7 @@ class (Monad m) =>
 class (Monad m) =>
       MonadRepeatState m rmap
   where
-  getRepeatMap :: m (rmap)
+  getRepeatMap :: m rmap
   putRepeatMap :: rmap -> m ()
   modifyRepeatMap :: (rmap -> rmap) -> m ()
   modifyRepeatMap f = getRepeatMap >>= (putRepeatMap . f)

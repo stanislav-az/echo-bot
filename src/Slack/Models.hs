@@ -5,7 +5,6 @@ import qualified Data.Text as T (Text(..))
 
 data SlackMessage = SlackMessage
   { smTimestamp :: String
-  , smHasAnticipation :: Bool
   , smText :: T.Text
   } deriving (Eq, Show)
 
@@ -18,5 +17,20 @@ data SlackFlag = SlackFlag
   } deriving (Eq, Show)
 
 data SlackReaction = SlackReaction
-  { srRepeatNumber :: Int
+  { srName :: String
+  } deriving (Eq, Show)
+
+data SlackRepeat = SlackRepeat
+  { sRepeatNumber :: Int
+  } deriving (Eq, Show)
+
+data SlackRepeatMap = SlackRepeatMap
+  { thisChatRepeatNumber :: Maybe Int
+  } deriving (Eq, Show)
+
+emptySlackRepeatMap :: SlackRepeatMap
+emptySlackRepeatMap = SlackRepeatMap Nothing
+
+data SlackIterator = SlackIterator
+  { lastTimestamp :: String
   } deriving (Eq, Show)

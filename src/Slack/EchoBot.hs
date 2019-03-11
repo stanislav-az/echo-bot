@@ -7,14 +7,14 @@ module Slack.EchoBot
   ) where
 
 import Bot.BotClass
-import Bot.EchoBot (EchoBot(..))
+import Bot.EchoBot (BotMessage(..), EchoBot(..))
 import Bot.Exception (checkResponseStatus, throwParseException)
 import Control.Monad (replicateM_, when)
 import Control.Monad.Catch
 import qualified Data.Aeson as JSON (decode)
 import qualified Data.ByteString.Lazy as LB (ByteString(..))
-import Data.Maybe (isJust, isNothing, listToMaybe)
-import qualified Data.Text as T (pack)
+import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe)
+import qualified Data.Text as T (Text(..), pack)
 import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
 import qualified Network.HTTP.Simple as HTTP (getResponseBody)
@@ -23,25 +23,38 @@ import Slack.Models
 import Slack.Requests
 
 slackBot ::
-     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m, HasSlackMod m)
-  => EchoBot m SlackMessage SlackReaction
+     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m)
+  => EchoBot m SlackMessage SlackReaction SlackFlag SlackAnticipation SlackRepeat SlackIterator SlackRepeatMap
 slackBot =
   EchoBot
     { getUpdates = sGetUpdates
-    , handleMsg = sHandleMsg
-    , handleReaction = sHandleReaction
+    , routeMsg = sRouteMsg
+    , sendMsg = sSendMsg
+    , sendRepeatMsg = sSendRepeatMsg
+    , iteratorTransformation = sIteratorTransformation
+    , repeatMapTransformation = sRepeatMapTransformation
+    , parseReaction = sParseReaction
+    , parseAnticipation = sParseAnticipation
+    , getCurrentRepeatNumber = sGetCurrentRepeatNumber
+    , replaceMsgText = sReplaceMsgText
+    , getTextualChat = sGetTextualChat
+    , getTextualRepeat = sGetTextualRepeat
+    , getTextualMsg = sGetTextualMsg
     }
 
 sGetUpdates ::
-     (MonadHTTP m, MonadThrow m, HasSlackConst m, HasSlackMod m)
-  => m ([SlackMessage], [SlackReaction])
-sGetUpdates = (,) <$> sAcquireMessages <*> sAcquireReactions
+     (HasSlackConst m, MonadHTTP m, MonadThrow m)
+  => Maybe SlackFlag
+  -> Maybe SlackIterator
+  -> m ([SlackMessage], [SlackReaction])
+sGetUpdates flag timestamp =
+  (,) <$> sAcquireMessages timestamp <*> sAcquireReactions flag
 
 sAcquireMessages ::
-     (MonadHTTP m, MonadThrow m, HasSlackConst m, HasSlackMod m)
-  => m [SlackMessage]
-sAcquireMessages = do
-  timestamp <- sGetLastTimestamp
+     (HasSlackConst m, MonadHTTP m, MonadThrow m)
+  => Maybe SlackIterator
+  -> m [SlackMessage]
+sAcquireMessages timestamp = do
   token <- sConstToken <$> getSlackConst
   channel <- sConstChannel <$> getSlackConst
   let conHistory = makeConHistory timestamp token channel
@@ -57,61 +70,66 @@ sAcquireMessages = do
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions ::
-     (MonadHTTP m, MonadThrow m, HasSlackConst m, HasSlackMod m)
-  => m [SlackReaction]
-sAcquireReactions = sGetRepeatTimestamp >>= maybe (pure []) acquire
-  where
-    acquire repeatTs = do
-      token <- sConstToken <$> getSlackConst
-      channel <- sConstChannel <$> getSlackConst
-      let getReactions = makeGetReactions token channel repeatTs
-      responseReactions <- http getReactions
-      checkResponseStatus responseReactions
-      let unparsedReactions = HTTP.getResponseBody responseReactions
-          parsedReactions = JSON.decode unparsedReactions
-      sPostResponse <-
-        maybe
-          (throwParseException unparsedReactions >> pure emptySPostResponse)
-          pure
-          parsedReactions
-      when (hasReactions sPostResponse) $ sPutRepeatTimestamp Nothing
-      pure $ sPostResponseToReactions sPostResponse
+     (HasSlackConst m, MonadHTTP m, MonadThrow m)
+  => Maybe SlackFlag
+  -> m [SlackReaction]
+sAcquireReactions Nothing = pure []
+sAcquireReactions (Just sf) = do
+  token <- sConstToken <$> getSlackConst
+  channel <- sConstChannel <$> getSlackConst
+  let getReactions = makeGetReactions token channel sf
+  responseReactions <- http getReactions
+  checkResponseStatus responseReactions
+  let unparsedReactions = HTTP.getResponseBody responseReactions
+      parsedReactions = JSON.decode unparsedReactions
+  sPostResponse <-
+    maybe
+      (throwParseException unparsedReactions >> pure emptySPostResponse)
+      pure
+      parsedReactions
+  pure $ sPostResponseToReactions sPostResponse
 
-sHandleMsg ::
-     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m, HasSlackMod m)
-  => SlackMessage
-  -> m ()
-sHandleMsg (SlackMessage ts aa "_help") = do
-  hMsg <- sConstHelpMsg <$> getSlackConst
-  sSendMsg $ SlackMessage ts aa hMsg
-  sPutLastTimestamp $ Just ts
-sHandleMsg (SlackMessage ts aa "_repeat") = do
-  rMsg <- sConstRepeatMsg <$> getSlackConst
-  r <- sGetRepeatNumber
-  let rnMsg = SlackMessage ts True (rMsg <> textify r)
-  unparsed <- sSendMsg rnMsg
-  let parsed = JSON.decode unparsed
-      repeatTs = sMessageTimestamp <$> (parsed >>= sPostResponseMsg)
-  when (isNothing repeatTs) $ throwParseException unparsed
-  sPutRepeatTimestamp repeatTs
-  sPutLastTimestamp $ Just ts
-sHandleMsg msg@SlackMessage {..} = do
-  r <- sGetRepeatNumber
-  replicateM_ r $ sSendMsg msg
-  sPutLastTimestamp $ Just smTimestamp
+sRouteMsg :: SlackMessage -> BotMessage
+sRouteMsg SlackMessage {..} =
+  case smText of
+    "_help" -> HelpMsg
+    "_repeat" -> RepeatMsg
+    _ -> Msg
 
-sHandleReaction ::
-     (MonadLogger m, HasSlackConst m, HasSlackMod m) => SlackReaction -> m ()
-sHandleReaction SlackReaction {..} = do
-  sPutRepeatNumber srRepeatNumber
-  chat <- T.pack . sConstChannel <$> getSlackConst
-  logChatRepeat chat (textify srRepeatNumber)
+sGetCurrentRepeatNumber :: Int -> SlackRepeatMap -> SlackMessage -> Int
+sGetCurrentRepeatNumber r SlackRepeatMap {..} _ =
+  fromMaybe r thisChatRepeatNumber
+
+sReplaceMsgText :: T.Text -> SlackMessage -> SlackMessage
+sReplaceMsgText text SlackMessage {..} = SlackMessage smTimestamp text
+
+sGetTextualChat ::
+     HasSlackConst m => Either SlackReaction SlackMessage -> m T.Text
+sGetTextualChat _ = T.pack . sConstChannel <$> getSlackConst
+
+sGetTextualRepeat :: SlackRepeat -> T.Text
+sGetTextualRepeat SlackRepeat {..} = textify sRepeatNumber
+
+sGetTextualMsg :: SlackMessage -> T.Text
+sGetTextualMsg = smText
 
 sSendMsg ::
-     (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m)
+     (HasSlackConst m, MonadHTTP m, MonadThrow m, MonadLogger m)
   => SlackMessage
-  -> m (Maybe SlackAnticipation)
-sSendMsg msg@SlackMessage {..} = do
+  -> m ()
+sSendMsg msg = sSendMsgGetResBody msg >> pure ()
+
+sSendRepeatMsg ::
+     (HasSlackConst m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  => SlackMessage
+  -> m SlackAnticipation
+sSendRepeatMsg msg = SlackAnticipation <$> sSendMsgGetResBody msg
+
+sSendMsgGetResBody ::
+     (HasSlackConst m, MonadHTTP m, MonadThrow m, MonadLogger m)
+  => SlackMessage
+  -> m LB.ByteString
+sSendMsgGetResBody msg@SlackMessage {..} = do
   token <- sConstToken <$> getSlackConst
   channel <- sConstChannel <$> getSlackConst
   let postMessage = makePostMessage token channel msg
@@ -119,12 +137,35 @@ sSendMsg msg@SlackMessage {..} = do
   checkResponseStatus response
   let chat = T.pack channel
   logChatMessage chat smText
-  if smHasAnticipation
-    then pure $ Just $ SlackAnticipation $ HTTP.getResponseBody response
-    else pure Nothing
+  pure $ HTTP.getResponseBody response
 
-hasReactions :: SPostResponse -> Bool
-hasReactions sPostResponse = isJust mbReaction
+sIteratorTransformation ::
+     Either SlackReaction SlackMessage
+  -> Maybe SlackIterator
+  -> Maybe SlackIterator
+sIteratorTransformation (Left _) = id
+sIteratorTransformation (Right SlackMessage {..}) =
+  \_ -> Just $ SlackIterator smTimestamp
+
+sRepeatMapTransformation :: SlackRepeat -> SlackRepeatMap -> SlackRepeatMap
+sRepeatMapTransformation SlackRepeat {..} _ =
+  SlackRepeatMap $ Just sRepeatNumber
+
+sParseReaction :: Monad m => SlackReaction -> m (Maybe SlackRepeat)
+sParseReaction SlackReaction {..} = pure slackRepeat
   where
-    mbReaction =
-      sPostResponseMsg sPostResponse >>= sMessageReactions >>= listToMaybe
+    slackRepeat =
+      case srName of
+        "one" -> Just $ SlackRepeat 1
+        "two" -> Just $ SlackRepeat 1
+        "three" -> Just $ SlackRepeat 1
+        "four" -> Just $ SlackRepeat 1
+        "five" -> Just $ SlackRepeat 1
+        _ -> Nothing
+
+sParseAnticipation :: (MonadThrow m) => SlackAnticipation -> m (Maybe SlackFlag)
+sParseAnticipation SlackAnticipation {..} = do
+  let parsed = JSON.decode saPostMsgResponseBody
+      repeatTs = sMessageTimestamp <$> (parsed >>= sPostResponseMsg)
+  when (isNothing repeatTs) $ throwParseException saPostMsgResponseBody
+  pure $ fmap SlackFlag repeatTs
