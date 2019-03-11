@@ -87,7 +87,7 @@ sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
     f ms SMessage {..} =
       case sMessageUser of
         Nothing -> ms
-        _ -> SlackMessage sMessageTimestamp sMessageText : ms
+        _ -> SlackMessage sMessageTimestamp False sMessageText : ms
 
 sPostResponseToReactions :: SPostResponse -> [SlackReaction]
 sPostResponseToReactions sPostResponse =

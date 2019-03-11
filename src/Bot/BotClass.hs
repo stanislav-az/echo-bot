@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Bot.BotClass where
 
 import qualified Control.Concurrent as CC (threadDelay)
@@ -97,3 +99,27 @@ class (Monad m) =>
   tModLastUpdateId f = tGetLastUpdateId >>= (tPutLastUpdateId . f)
   tModRepeatMap :: (HM.HashMap Integer Int -> HM.HashMap Integer Int) -> m ()
   tModRepeatMap f = tGetRepeatMap >>= (tPutRepeatMap . f)
+
+class (Monad m) =>
+      MonadFlagState m flag
+  where
+  getFlag :: m (Maybe flag)
+  putFlag :: Maybe flag -> m ()
+  modifyFlag :: (Maybe flag -> Maybe flag) -> m ()
+  modifyFlag f = getFlag >>= (putFlag . f)
+
+class (Monad m) =>
+      MonadIterState m iter
+  where
+  getIterator :: m (Maybe iter)
+  putIterator :: Maybe iter -> m ()
+  modifyIterator :: (Maybe iter -> Maybe iter) -> m ()
+  modifyIterator f = getIterator >>= (putIterator . f)
+
+class (Monad m) =>
+      MonadRepeatState m rmap
+  where
+  getRepeatMap :: m (rmap)
+  putRepeatMap :: rmap -> m ()
+  modifyRepeatMap :: (rmap -> rmap) -> m ()
+  modifyRepeatMap f = getRepeatMap >>= (putRepeatMap . f)

@@ -81,14 +81,14 @@ sHandleMsg ::
      (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m, HasSlackMod m)
   => SlackMessage
   -> m ()
-sHandleMsg (SlackMessage ts "_help") = do
-  hMsg <- sConstHelpMsg <$> getSlackConst 
-  sSendMsg $ SlackMessage ts hMsg
+sHandleMsg (SlackMessage ts aa "_help") = do
+  hMsg <- sConstHelpMsg <$> getSlackConst
+  sSendMsg $ SlackMessage ts aa hMsg
   sPutLastTimestamp $ Just ts
-sHandleMsg (SlackMessage ts "_repeat") = do
-  rMsg <- sConstRepeatMsg <$> getSlackConst 
+sHandleMsg (SlackMessage ts aa "_repeat") = do
+  rMsg <- sConstRepeatMsg <$> getSlackConst
   r <- sGetRepeatNumber
-  let rnMsg = SlackMessage ts (rMsg <> textify r)
+  let rnMsg = SlackMessage ts True (rMsg <> textify r)
   unparsed <- sSendMsg rnMsg
   let parsed = JSON.decode unparsed
       repeatTs = sMessageTimestamp <$> (parsed >>= sPostResponseMsg)
@@ -110,7 +110,7 @@ sHandleReaction SlackReaction {..} = do
 sSendMsg ::
      (MonadHTTP m, MonadThrow m, MonadLogger m, HasSlackConst m)
   => SlackMessage
-  -> m LB.ByteString
+  -> m (Maybe SlackAnticipation)
 sSendMsg msg@SlackMessage {..} = do
   token <- sConstToken <$> getSlackConst
   channel <- sConstChannel <$> getSlackConst
@@ -119,7 +119,9 @@ sSendMsg msg@SlackMessage {..} = do
   checkResponseStatus response
   let chat = T.pack channel
   logChatMessage chat smText
-  pure $ HTTP.getResponseBody response
+  if smHasAnticipation
+    then pure $ Just $ SlackAnticipation $ HTTP.getResponseBody response
+    else pure Nothing
 
 hasReactions :: SPostResponse -> Bool
 hasReactions sPostResponse = isJust mbReaction

@@ -162,7 +162,11 @@ upd1 = TUpdate 1 msg1 Nothing
 telegramMsg1 :: TelegramMessage
 telegramMsg1 =
   TelegramMessage
-    {tmUpdateId = 1, tmChatId = 42, tmText = "Hello, this is captain speaking"}
+    { tmUpdateId = 1
+    , tmChatId = 42
+    , tmHasKeyboard = False
+    , tmText = "Hello, this is captain speaking"
+    }
 
 upd2 :: TUpdate
 upd2 = TUpdate 2 msg2 Nothing
@@ -232,6 +236,7 @@ telegramMsg7 =
   TelegramMessage
     { tmUpdateId = 7
     , tmChatId = 42
+    , tmHasKeyboard = False
     , tmText = "Hello again, this is captain speaking"
     }
 
@@ -248,7 +253,12 @@ upd8 = TUpdate 8 msg8 Nothing
 
 telegramMsg8 :: TelegramMessage
 telegramMsg8 =
-  TelegramMessage {tmUpdateId = 8, tmChatId = 42, tmText = "Вам письмо"}
+  TelegramMessage
+    { tmUpdateId = 8
+    , tmChatId = 42
+    , tmHasKeyboard = False
+    , tmText = "Вам письмо"
+    }
 
 upd9 :: TUpdate
 upd9 = TUpdate 9 msg9 Nothing
@@ -260,7 +270,12 @@ upd9 = TUpdate 9 msg9 Nothing
 
 telegramMsg9 :: TelegramMessage
 telegramMsg9 =
-  TelegramMessage {tmUpdateId = 9, tmChatId = 42, tmText = "telegram_help_msg"}
+  TelegramMessage
+    { tmUpdateId = 9
+    , tmChatId = 42
+    , tmHasKeyboard = False
+    , tmText = "telegram_help_msg"
+    }
 
 upd10 :: TUpdate
 upd10 = TUpdate 10 msg10 Nothing
@@ -276,4 +291,8 @@ upd10 = TUpdate 10 msg10 Nothing
 telegramMsg10 :: TelegramMessage
 telegramMsg10 =
   TelegramMessage
-    {tmUpdateId = 10, tmChatId = 42, tmText = "telegram_repeat_msg1"}
+    { tmUpdateId = 10
+    , tmChatId = 42
+    , tmHasKeyboard = False
+    , tmText = "telegram_repeat_msg1"
+    }
