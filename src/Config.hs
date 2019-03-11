@@ -58,15 +58,12 @@ makeTelegramEnv = do
   rNum <- getByName conf "telegram.repeat_number"
   pure $
     TelegramEnv
-      { tTelegramConst =
-          TelegramConst
-            { tConstToken = token
-            , tConstHelpMsg = hMsg
-            , tConstRepeatMsg = rMsg
-            , tConstRepeatNumber = rNum
-            }
+      { tTelegramConst = TelegramConst token
       , tLastUpdateId = Nothing
       , tRepeatMap = HM.empty
+      , tHelpMsg = hMsg
+      , tRepeatMsg = rMsg
+      , tDefaultRepeatNumber = rNum
       }
 
 makeSlackEnv :: IO SlackEnv
@@ -79,14 +76,11 @@ makeSlackEnv = do
   rNum <- getByName conf "slack.repeat_number"
   pure $
     SlackEnv
-      { sSlackConst =
-          SlackConst
-            { sConstToken = token
-            , sConstChannel = channel
-            , sConstHelpMsg = hMsg
-            , sConstRepeatMsg = rMsg
-            }
+      { sSlackConst = SlackConst {sConstToken = token, sConstChannel = channel}
       , sLastTimestamp = Nothing
-      , sRepeatNumber = rNum
+      , sRepeatMap = Nothing
       , sRepeatTimestamp = Nothing
+      , sHelpMsg = hMsg
+      , sRepeatMsg = rMsg
+      , sDefaultRepeatNumber = rNum
       }

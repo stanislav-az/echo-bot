@@ -8,29 +8,14 @@ data SlackMessage = SlackMessage
   , smText :: T.Text
   } deriving (Eq, Show)
 
-data SlackAnticipation = SlackAnticipation
-  { saPostMsgResponseBody :: LB.ByteString
-  } deriving (Eq, Show)
-
-data SlackFlag = SlackFlag
-  { sfRepeatTimestamp :: String
-  } deriving (Eq, Show)
-
 data SlackReaction = SlackReaction
   { srName :: String
   } deriving (Eq, Show)
 
-data SlackRepeat = SlackRepeat
-  { sRepeatNumber :: Int
-  } deriving (Eq, Show)
+type SlackAnticipation = LB.ByteString
 
-data SlackRepeatMap = SlackRepeatMap
-  { thisChatRepeatNumber :: Maybe Int
-  } deriving (Eq, Show)
+type SlackRepeatMap = Maybe Int
 
-emptySlackRepeatMap :: SlackRepeatMap
-emptySlackRepeatMap = SlackRepeatMap Nothing
+type SlackIterator = String
 
-data SlackIterator = SlackIterator
-  { lastTimestamp :: String
-  } deriving (Eq, Show)
+type SlackFlag = String

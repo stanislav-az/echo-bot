@@ -69,22 +69,6 @@ class (Monad m) =>
   where
   getSlackConst :: m SlackConst
 
-class (Monad m) =>
-      HasSlackMod m
-  where
-  sGetLastTimestamp :: m (Maybe String)
-  sGetRepeatNumber :: m Int
-  sGetRepeatTimestamp :: m (Maybe String)
-  sPutLastTimestamp :: Maybe String -> m ()
-  sPutRepeatNumber :: Int -> m ()
-  sPutRepeatTimestamp :: Maybe String -> m ()
-  sModLastTimestamp :: (Maybe String -> Maybe String) -> m ()
-  sModLastTimestamp f = sGetLastTimestamp >>= (sPutLastTimestamp . f)
-  sModRepeatNumber :: (Int -> Int) -> m ()
-  sModRepeatNumber f = sGetRepeatNumber >>= (sPutRepeatNumber . f)
-  sModRepeatTimestamp :: (Maybe String -> Maybe String) -> m ()
-  sModRepeatTimestamp f = sGetRepeatTimestamp >>= (sPutRepeatTimestamp . f)
-
 data TelegramConst = TelegramConst
   { tConstToken :: String
   } deriving (Eq, Show)
@@ -93,18 +77,6 @@ class (Monad m) =>
       HasTelegramConst m
   where
   getTelegramConst :: m TelegramConst
-
-class (Monad m) =>
-      HasTelegramMod m
-  where
-  tGetLastUpdateId :: m (Maybe Integer)
-  tGetRepeatMap :: m (HM.HashMap Integer Int)
-  tPutLastUpdateId :: Maybe Integer -> m ()
-  tPutRepeatMap :: HM.HashMap Integer Int -> m ()
-  tModLastUpdateId :: (Maybe Integer -> Maybe Integer) -> m ()
-  tModLastUpdateId f = tGetLastUpdateId >>= (tPutLastUpdateId . f)
-  tModRepeatMap :: (HM.HashMap Integer Int -> HM.HashMap Integer Int) -> m ()
-  tModRepeatMap f = tGetRepeatMap >>= (tPutRepeatMap . f)
 
 class (Monad m) =>
       MonadFlagState m flag

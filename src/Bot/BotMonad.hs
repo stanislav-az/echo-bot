@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Bot.BotMonad where
 
@@ -8,18 +9,26 @@ import Control.Monad.Catch
 import Control.Monad.State
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T (Text(..))
+import Slack.Models
+import Telegram.Models
 
 data TelegramEnv = TelegramEnv
   { tTelegramConst :: TelegramConst
   , tLastUpdateId :: Maybe Integer
   , tRepeatMap :: HM.HashMap Integer Int
+  , tHelpMsg :: T.Text
+  , tRepeatMsg :: T.Text
+  , tDefaultRepeatNumber :: Int
   } deriving (Eq, Show)
 
 data SlackEnv = SlackEnv
   { sSlackConst :: SlackConst
   , sLastTimestamp :: Maybe String
-  , sRepeatNumber :: Int
+  , sRepeatMap :: Maybe Int
   , sRepeatTimestamp :: Maybe String
+  , sHelpMsg :: T.Text
+  , sRepeatMsg :: T.Text
+  , sDefaultRepeatNumber :: Int
   } deriving (Eq, Show)
 
 data BotException
@@ -67,19 +76,37 @@ instance MonadHTTP (BotMonad e) where
 instance HasSlackConst (BotMonad SlackEnv) where
   getSlackConst = gets sSlackConst
 
-instance HasSlackMod (BotMonad SlackEnv) where
-  sGetLastTimestamp = gets sLastTimestamp
-  sGetRepeatNumber = gets sRepeatNumber
-  sGetRepeatTimestamp = gets sRepeatTimestamp
-  sPutLastTimestamp x = modify $ \s -> s {sLastTimestamp = x}
-  sPutRepeatNumber x = modify $ \s -> s {sRepeatNumber = x}
-  sPutRepeatTimestamp x = modify $ \s -> s {sRepeatTimestamp = x}
-
 instance HasTelegramConst (BotMonad TelegramEnv) where
   getTelegramConst = gets tTelegramConst
 
-instance HasTelegramMod (BotMonad TelegramEnv) where
-  tGetLastUpdateId = gets tLastUpdateId
-  tGetRepeatMap = gets tRepeatMap
-  tPutLastUpdateId x = modify $ \s -> s {tLastUpdateId = x}
-  tPutRepeatMap x = modify $ \s -> s {tRepeatMap = x}
+instance HasBotConst (BotMonad SlackEnv) where
+  getBotConst =
+    BotConst <$> gets sHelpMsg <*> gets sRepeatMsg <*> gets sDefaultRepeatNumber
+
+instance HasBotConst (BotMonad TelegramEnv) where
+  getBotConst =
+    BotConst <$> gets tHelpMsg <*> gets tRepeatMsg <*> gets tDefaultRepeatNumber
+
+instance MonadFlagState (BotMonad SlackEnv) SlackFlag where
+  getFlag = gets sRepeatTimestamp
+  putFlag flag = modify $ \s -> s {sRepeatTimestamp = flag}
+
+instance MonadFlagState (BotMonad TelegramEnv) TelegramFlag where
+  getFlag = pure Nothing
+  putFlag _ = pure ()
+
+instance MonadIterState (BotMonad SlackEnv) SlackIterator where
+  getIterator = gets sLastTimestamp
+  putIterator ts = modify $ \s -> s {sLastTimestamp = ts}
+
+instance MonadIterState (BotMonad TelegramEnv) TelegramIterator where
+  getIterator = gets tLastUpdateId
+  putIterator uid = modify $ \s -> s {tLastUpdateId = uid}
+
+instance MonadRepeatState (BotMonad SlackEnv) SlackRepeatMap where
+  getRepeatMap = gets sRepeatMap
+  putRepeatMap repeatMap = modify $ \s -> s {sRepeatMap = repeatMap}
+
+instance MonadRepeatState (BotMonad TelegramEnv) TelegramRepeatMap where
+  getRepeatMap = gets tRepeatMap
+  putRepeatMap repeatMap = modify $ \s -> s {tRepeatMap = repeatMap}

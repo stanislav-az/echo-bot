@@ -23,24 +23,23 @@ makeConHistory timestamp token channel =
       HTTP.setRequestQueryString
         (Q.simpleQueryToQuery $ ("limit", "1") : address)
         req
-    (Just SlackIterator {..}) ->
+    (Just ts) ->
       HTTP.setRequestQueryString
-        (Q.simpleQueryToQuery $ ("oldest", B8.pack lastTimestamp) : address)
+        (Q.simpleQueryToQuery $ ("oldest", B8.pack ts) : address)
         req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/conversations.history"
     address = [("token", B8.pack token), ("channel", B8.pack channel)]
 
 makeGetReactions :: String -> String -> SlackFlag -> HTTP.Request
-makeGetReactions token channel SlackFlag {..} =
-  HTTP.setRequestQueryString query req
+makeGetReactions token channel repeatTs = HTTP.setRequestQueryString query req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/reactions.get"
     query =
       Q.simpleQueryToQuery
         [ ("token", B8.pack token)
         , ("channel", B8.pack channel)
-        , ("timestamp", B8.pack sfRepeatTimestamp)
+        , ("timestamp", B8.pack repeatTs)
         ]
 
 makePostMessage :: String -> String -> SlackMessage -> HTTP.Request

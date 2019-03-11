@@ -147,7 +147,7 @@ tResponseToModels tResponse = foldr go ([], []) (tResponseResult tResponse)
     go (TUpdate uid a b) (msgs, cbs) =
       (getMsg uid a ++ msgs, getCb uid b ++ cbs)
     getMsg uid (Just (TMessage _ (TChat chatID) (Just txt))) =
-      [TelegramMessage uid chatID False txt]
+      [TelegramMessage uid chatID txt]
     getMsg _ _ = []
     getCb uid (Just (TCallbackQuery queryID (Just msg) (Just btnPressed))) =
       [TelegramReaction uid queryID (tChatId $ tMessageChat msg) btnPressed]
