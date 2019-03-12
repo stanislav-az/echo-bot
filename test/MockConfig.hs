@@ -9,15 +9,12 @@ import qualified Data.HashMap.Strict as HM (empty)
 getTelegramEnv :: TelegramEnv
 getTelegramEnv =
   TelegramEnv
-    { tTelegramConst =
-        TelegramConst
-          { tConstToken = "telegram_token"
-          , tConstHelpMsg = "telegram_help_msg"
-          , tConstRepeatMsg = "telegram_repeat_msg"
-          , tConstRepeatNumber = 1
-          }
+    { tTelegramConst = TelegramConst "telegram_token"
     , tLastUpdateId = Nothing
     , tRepeatMap = HM.empty
+    , tHelpMsg = "telegram_help_msg"
+    , tRepeatMsg = "telegram_repeat_msg"
+    , tDefaultRepeatNumber = 1
     }
 
 getSlackEnv :: SlackEnv
@@ -25,12 +22,11 @@ getSlackEnv =
   SlackEnv
     { sSlackConst =
         SlackConst
-          { sConstToken = "slack_token"
-          , sConstChannel = "slack_channel"
-          , sConstHelpMsg = "slack_help_msg"
-          , sConstRepeatMsg = "slack_repeat_msg"
-          }
+          {sConstToken = "slack_token", sConstChannel = "slack_channel"}
     , sLastTimestamp = Nothing
-    , sRepeatNumber = 1
+    , sRepeatMap = Nothing
     , sRepeatTimestamp = Nothing
+    , sHelpMsg = "slack_help_msg"
+    , sRepeatMsg = "slack_repeat_msg"
+    , sDefaultRepeatNumber = 1
     }

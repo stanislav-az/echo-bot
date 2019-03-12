@@ -1,6 +1,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module MockMonad where
 
@@ -15,15 +18,16 @@ import MockConfig (getSlackEnv, getTelegramEnv)
 import MockResponses
 import qualified Network.HTTP.Conduit as HTTP (Request(..), path)
 import qualified Slack.EchoBot as Bot
+import qualified Slack.Models as Bot
 import qualified Telegram.EchoBot as Bot
+import qualified Telegram.Models as Bot
 
-data MockIO = MockIO
+data MockIO e = MockIO
   { mockLog :: [MockLog]
   , mockDelayCounter :: Integer
-  , mockSlackEnv :: Bot.SlackEnv
+  , mockBotEnv :: e
   , mockSlackResponseStack :: SlackResponseStack
   , mockSlackRequestStack :: SlackRequestStack
-  , mockTelegramEnv :: Bot.TelegramEnv
   , mockTelegramResponseStack :: TelegramResponseStack
   , mockTelegramRequestStack :: TelegramRequestStack
   } deriving (Show)
@@ -35,105 +39,141 @@ data MockLog
   | Error T.Text
   deriving (Eq, Show)
 
-newtype MockMonad a = MockMonad
-  { runMockMonad :: StateT MockIO Catch a
+newtype MockMonad e a = MockMonad
+  { runMockMonad :: StateT (MockIO e) Catch a
   } deriving ( Functor
              , Applicative
              , Monad
-             , MonadState MockIO
+             , MonadState (MockIO e)
              , MonadThrow
              , MonadCatch
              )
 
-runMock :: MockIO -> MockMonad a -> Either SomeException MockIO
+runMock :: MockIO e -> MockMonad e a -> Either SomeException (MockIO e)
 runMock env = runCatch . (`execStateT` env) . runMockMonad
 
-instance Bot.MonadDelay MockMonad where
+instance Bot.MonadDelay (MockMonad e) where
   delay i =
     modify $ \s@MockIO {..} ->
       s {mockDelayCounter = mockDelayCounter + fromIntegral i}
 
-instance Bot.MonadLogger MockMonad where
+instance Bot.MonadLogger (MockMonad e) where
   logDebug e = modify $ \s@MockIO {..} -> s {mockLog = Debug e : mockLog}
   logInfo e = modify $ \s@MockIO {..} -> s {mockLog = Info e : mockLog}
   logWarn e = modify $ \s@MockIO {..} -> s {mockLog = Warn e : mockLog}
   logError e = modify $ \s@MockIO {..} -> s {mockLog = Error e : mockLog}
 
-instance Bot.MonadHTTP MockMonad where
+instance Bot.MonadHTTP (MockMonad e) where
   http req = route req $ routes req
 
-instance Bot.HasSlackConst MockMonad where
-  getSlackConst = Bot.sSlackConst <$> gets mockSlackEnv
+instance Bot.HasSlackConst (MockMonad Bot.SlackEnv) where
+  getSlackConst = Bot.sSlackConst <$> gets mockBotEnv
 
-instance Bot.HasSlackMod MockMonad where
-  sGetLastTimestamp = Bot.sLastTimestamp <$> gets mockSlackEnv
-  sGetRepeatNumber = Bot.sRepeatNumber <$> gets mockSlackEnv
-  sGetRepeatTimestamp = Bot.sRepeatTimestamp <$> gets mockSlackEnv
-  sPutLastTimestamp x =
-    modify $ \s@MockIO {..} ->
-      s {mockSlackEnv = mockSlackEnv {Bot.sLastTimestamp = x}}
-  sPutRepeatNumber x =
-    modify $ \s@MockIO {..} ->
-      s {mockSlackEnv = mockSlackEnv {Bot.sRepeatNumber = x}}
-  sPutRepeatTimestamp x =
-    modify $ \s@MockIO {..} ->
-      s {mockSlackEnv = mockSlackEnv {Bot.sRepeatTimestamp = x}}
+instance Bot.HasTelegramConst (MockMonad Bot.TelegramEnv) where
+  getTelegramConst = Bot.tTelegramConst <$> gets mockBotEnv
 
-instance Bot.HasTelegramConst MockMonad where
-  getTelegramConst = Bot.tTelegramConst <$> gets mockTelegramEnv
+instance Bot.HasBotConst (MockMonad Bot.SlackEnv) where
+  getBotConst =
+    let mapEnv f = f <$> gets mockBotEnv
+     in Bot.BotConst <$> mapEnv Bot.sHelpMsg <*> mapEnv Bot.sRepeatMsg <*>
+        mapEnv Bot.sDefaultRepeatNumber
 
-instance Bot.HasTelegramMod MockMonad where
-  tGetLastUpdateId = Bot.tLastUpdateId <$> gets mockTelegramEnv
-  tGetRepeatMap = Bot.tRepeatMap <$> gets mockTelegramEnv
-  tPutLastUpdateId x =
-    modify $ \s@MockIO {..} ->
-      s {mockTelegramEnv = mockTelegramEnv {Bot.tLastUpdateId = x}}
-  tPutRepeatMap x =
-    modify $ \s@MockIO {..} ->
-      s {mockTelegramEnv = mockTelegramEnv {Bot.tRepeatMap = x}}
+instance Bot.HasBotConst (MockMonad Bot.TelegramEnv) where
+  getBotConst =
+    let mapEnv f = f <$> gets mockBotEnv
+     in Bot.BotConst <$> mapEnv Bot.tHelpMsg <*> mapEnv Bot.tRepeatMsg <*>
+        mapEnv Bot.tDefaultRepeatNumber
 
-mockIOInitial :: MockIO
-mockIOInitial =
+instance Bot.MonadFlagState (MockMonad Bot.SlackEnv) Bot.SlackFlag where
+  getFlag = Bot.sRepeatTimestamp <$> gets mockBotEnv
+  putFlag flag =
+    modify $ \s@MockIO {..} ->
+      s {mockBotEnv = mockBotEnv {Bot.sRepeatTimestamp = flag}}
+
+instance Bot.MonadFlagState (MockMonad Bot.TelegramEnv) Bot.TelegramFlag where
+  getFlag = pure Nothing
+  putFlag _ = pure ()
+
+instance Bot.MonadIterState (MockMonad Bot.SlackEnv) Bot.SlackIterator where
+  getIterator = Bot.sLastTimestamp <$> gets mockBotEnv
+  putIterator iter =
+    modify $ \s@MockIO {..} ->
+      s {mockBotEnv = mockBotEnv {Bot.sLastTimestamp = iter}}
+
+instance Bot.MonadIterState (MockMonad Bot.TelegramEnv) Bot.TelegramIterator where
+  getIterator = Bot.tLastUpdateId <$> gets mockBotEnv
+  putIterator iter =
+    modify $ \s@MockIO {..} ->
+      s {mockBotEnv = mockBotEnv {Bot.tLastUpdateId = iter}}
+
+instance Bot.MonadRepeatState (MockMonad Bot.SlackEnv) Bot.SlackRepeatMap where
+  getRepeatMap = Bot.sRepeatMap <$> gets mockBotEnv
+  putRepeatMap repeatMap =
+    modify $ \s@MockIO {..} ->
+      s {mockBotEnv = mockBotEnv {Bot.sRepeatMap = repeatMap}}
+
+instance Bot.MonadRepeatState (MockMonad Bot.TelegramEnv) Bot.TelegramRepeatMap where
+  getRepeatMap = Bot.tRepeatMap <$> gets mockBotEnv
+  putRepeatMap repeatMap =
+    modify $ \s@MockIO {..} ->
+      s {mockBotEnv = mockBotEnv {Bot.tRepeatMap = repeatMap}}
+
+mockIOSlack :: MockIO Bot.SlackEnv
+mockIOSlack =
   MockIO
     { mockLog = []
     , mockDelayCounter = 0
-    , mockSlackEnv = getSlackEnv
+    , mockBotEnv = getSlackEnv
     , mockSlackResponseStack = emptySlackResponseStack
     , mockSlackRequestStack = emptySlackRequestStack
-    , mockTelegramEnv = getTelegramEnv
     , mockTelegramResponseStack = emptyTelegramResponseStack
     , mockTelegramRequestStack = emptyTelegramRequestStack
     }
 
-runTestSlack :: MonadThrow m => MockMonad () -> m SlackRequestStack
+runTestSlack :: MonadThrow m => MockMonad Bot.SlackEnv () -> m SlackRequestStack
 runTestSlack test = either throwM pure $ mockSlackRequestStack <$> resSlack
   where
-    resSlack = runMock mockIOInitial test
+    resSlack = runMock mockIOSlack test
 
-testSlack :: SlackResponseStack -> MockMonad ()
+testSlack :: SlackResponseStack -> MockMonad Bot.SlackEnv ()
 testSlack resStack = do
   modify $ \s -> s {mockSlackResponseStack = resStack}
   Bot.botCycle Bot.slackBot
 
-runTestTelegram :: MonadThrow m => MockMonad () -> m TelegramRequestStack
+mockIOTelegram :: MockIO Bot.TelegramEnv
+mockIOTelegram =
+  MockIO
+    { mockLog = []
+    , mockDelayCounter = 0
+    , mockBotEnv = getTelegramEnv
+    , mockSlackResponseStack = emptySlackResponseStack
+    , mockSlackRequestStack = emptySlackRequestStack
+    , mockTelegramResponseStack = emptyTelegramResponseStack
+    , mockTelegramRequestStack = emptyTelegramRequestStack
+    }
+
+runTestTelegram ::
+     MonadThrow m => MockMonad Bot.TelegramEnv () -> m TelegramRequestStack
 runTestTelegram test =
   either throwM pure $ mockTelegramRequestStack <$> resTelegram
   where
-    resTelegram = runMock mockIOInitial test
+    resTelegram = runMock mockIOTelegram test
 
-testTelegram :: TelegramResponseStack -> MockMonad ()
+testTelegram :: TelegramResponseStack -> MockMonad Bot.TelegramEnv ()
 testTelegram resStack = do
   modify $ \s -> s {mockTelegramResponseStack = resStack}
   Bot.botCycle Bot.telegramBot
 
 route ::
-     HTTP.Request -> [(Path, MockMonad ResponseLBS)] -> MockMonad ResponseLBS
+     HTTP.Request
+  -> [(Path, MockMonad e ResponseLBS)]
+  -> MockMonad e ResponseLBS
 route req rs = fromMaybe (pure notFoundResponse) response
   where
     path = HTTP.path req
     response = lookup path rs
 
-routes :: HTTP.Request -> [(Path, MockMonad ResponseLBS)]
+routes :: HTTP.Request -> [(Path, MockMonad e ResponseLBS)]
 routes req =
   [ ("/api/conversations.history", respondToConHistory req)
   , ("/api/reactions.get", respondToGetReactions req)
@@ -143,61 +183,61 @@ routes req =
   , ("/bottelegram_token/answerCallbackQuery", respondToAnswerCallbackQuery req)
   ]
 
-respondToConHistory :: HTTP.Request -> MockMonad ResponseLBS
+respondToConHistory :: HTTP.Request -> MockMonad e ResponseLBS
 respondToConHistory req = do
-  modify $ \s@(MockIO _ _ _ _ stack@SlackRequestStack {..} _ _ _) ->
+  modify $ \s@(MockIO _ _ _ _ stack@SlackRequestStack {..} _ _) ->
     s {mockSlackRequestStack = stack {conHistoryReq = req : conHistoryReq}}
   mbRes <- conHistoryRes <$> gets mockSlackResponseStack
-  modify $ \s@(MockIO _ _ _ stack@SlackResponseStack {..} _ _ _ _) ->
+  modify $ \s@(MockIO _ _ _ stack@SlackResponseStack {..} _ _ _) ->
     s {mockSlackResponseStack = stack {conHistoryRes = Nothing}}
   maybe throwTooManyRequests pure mbRes
 
-respondToGetReactions :: HTTP.Request -> MockMonad ResponseLBS
+respondToGetReactions :: HTTP.Request -> MockMonad e ResponseLBS
 respondToGetReactions req = do
-  modify $ \s@(MockIO _ _ _ _ stack@SlackRequestStack {..} _ _ _) ->
+  modify $ \s@(MockIO _ _ _ _ stack@SlackRequestStack {..} _ _) ->
     s {mockSlackRequestStack = stack {getReactionsReq = req : getReactionsReq}}
   mbRes <- getReactionsRes <$> gets mockSlackResponseStack
-  modify $ \s@(MockIO _ _ _ stack@SlackResponseStack {..} _ _ _ _) ->
+  modify $ \s@(MockIO _ _ _ stack@SlackResponseStack {..} _ _ _) ->
     s {mockSlackResponseStack = stack {getReactionsRes = Nothing}}
   maybe throwTooManyRequests pure mbRes
 
-throwTooManyRequests :: MockMonad ResponseLBS
+throwTooManyRequests :: MockMonad e ResponseLBS
 throwTooManyRequests = throwM TooManyRequests >> pure tooManyRequestsResponse
 
-respondToPostMessage :: HTTP.Request -> MockMonad ResponseLBS
+respondToPostMessage :: HTTP.Request -> MockMonad e ResponseLBS
 respondToPostMessage req = do
-  modify $ \s@(MockIO _ _ _ _ stack@SlackRequestStack {..} _ _ _) ->
+  modify $ \s@(MockIO _ _ _ _ stack@SlackRequestStack {..} _ _) ->
     s {mockSlackRequestStack = stack {postMessageReq = req : postMessageReq}}
   rs <- postMessageRes <$> gets mockSlackResponseStack
   let mbRes = listToMaybe rs
       newRs = drop 1 rs
-  modify $ \s@(MockIO _ _ _ stack@SlackResponseStack {..} _ _ _ _) ->
+  modify $ \s@(MockIO _ _ _ stack@SlackResponseStack {..} _ _ _) ->
     s {mockSlackResponseStack = stack {postMessageRes = newRs}}
   maybe throwTooManyRequests pure mbRes
 
-respondToGetUpdates :: HTTP.Request -> MockMonad ResponseLBS
+respondToGetUpdates :: HTTP.Request -> MockMonad e ResponseLBS
 respondToGetUpdates req = do
-  modify $ \s@(MockIO _ _ _ _ _ _ _ stack@TelegramRequestStack {..}) ->
+  modify $ \s@(MockIO _ _ _ _ _ _ stack@TelegramRequestStack {..}) ->
     s {mockTelegramRequestStack = stack {getUpdatesReq = req : getUpdatesReq}}
   mbRes <- getUpdatesRes <$> gets mockTelegramResponseStack
-  modify $ \s@(MockIO _ _ _ _ _ _ stack@TelegramResponseStack {..} _) ->
+  modify $ \s@(MockIO _ _ _ _ _ stack@TelegramResponseStack {..} _) ->
     s {mockTelegramResponseStack = stack {getUpdatesRes = Nothing}}
   maybe throwTooManyRequests pure mbRes
 
-respondToSendMessage :: HTTP.Request -> MockMonad ResponseLBS
+respondToSendMessage :: HTTP.Request -> MockMonad e ResponseLBS
 respondToSendMessage req = do
-  modify $ \s@(MockIO _ _ _ _ _ _ _ stack@TelegramRequestStack {..}) ->
+  modify $ \s@(MockIO _ _ _ _ _ _ stack@TelegramRequestStack {..}) ->
     s {mockTelegramRequestStack = stack {sendMessageReq = req : sendMessageReq}}
   rs <- sendMessageRes <$> gets mockTelegramResponseStack
   let mbRes = listToMaybe rs
       newRs = drop 1 rs
-  modify $ \s@(MockIO _ _ _ _ _ _ stack@TelegramResponseStack {..} _) ->
+  modify $ \s@(MockIO _ _ _ _ _ stack@TelegramResponseStack {..} _) ->
     s {mockTelegramResponseStack = stack {sendMessageRes = newRs}}
   maybe throwTooManyRequests pure mbRes
 
-respondToAnswerCallbackQuery :: HTTP.Request -> MockMonad ResponseLBS
+respondToAnswerCallbackQuery :: HTTP.Request -> MockMonad e ResponseLBS
 respondToAnswerCallbackQuery req = do
-  modify $ \s@(MockIO _ _ _ _ _ _ _ stack@TelegramRequestStack {..}) ->
+  modify $ \s@(MockIO _ _ _ _ _ _ stack@TelegramRequestStack {..}) ->
     s
       { mockTelegramRequestStack =
           stack {answerCallbackQueryReq = req : answerCallbackQueryReq}
@@ -205,6 +245,6 @@ respondToAnswerCallbackQuery req = do
   rs <- answerCallbackQueryRes <$> gets mockTelegramResponseStack
   let mbRes = listToMaybe rs
       newRs = drop 1 rs
-  modify $ \s@(MockIO _ _ _ _ _ _ stack@TelegramResponseStack {..} _) ->
+  modify $ \s@(MockIO _ _ _ _ _ stack@TelegramResponseStack {..} _) ->
     s {mockTelegramResponseStack = stack {answerCallbackQueryRes = newRs}}
   maybe throwTooManyRequests pure mbRes
