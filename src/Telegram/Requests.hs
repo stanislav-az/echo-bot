@@ -22,19 +22,15 @@ standardRequest :: String -> String
 standardRequest = ("https://api.telegram.org/bot" ++)
 
 makeGetUpdates :: Maybe Integer -> String -> HTTP.Request
-makeGetUpdates offset token =
-  case offset of
-    Nothing -> HTTP.setRequestQueryString (Q.simpleQueryToQuery query) req
-    (Just o) ->
-      HTTP.setRequestQueryString
-        (Q.simpleQueryToQuery $ ("offset", showToQueryItem o) : query)
-        req
+makeGetUpdates offset token = HTTP.setRequestQueryString query req
   where
     req = HTTP.parseRequest_ $ "GET " ++ standardRequest token ++ "/getUpdates"
-    query =
+    simpleQuery =
       [ ("timeout", B8.pack "10")
       , ("allowed_updates[]", B8.pack "callback_query,message")
       ]
+    addOffset x = ("offset", showToQueryItem x) : simpleQuery
+    query = Q.simpleQueryToQuery $ maybe simpleQuery addOffset offset
 
 makeSendMessage :: String -> TelegramMessage -> HTTP.Request
 makeSendMessage token msg = HTTP.setRequestBodyJSON postMessage req

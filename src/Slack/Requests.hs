@@ -1,5 +1,5 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Slack.Requests where
 
@@ -18,18 +18,11 @@ import Slack.Models (SlackFlag(..), SlackIterator(..), SlackMessage(..))
 
 makeConHistory :: Maybe SlackIterator -> String -> String -> HTTP.Request
 makeConHistory timestamp token channel =
-  case timestamp of
-    Nothing ->
-      HTTP.setRequestQueryString
-        (Q.simpleQueryToQuery $ ("limit", "1") : address)
-        req
-    (Just ts) ->
-      HTTP.setRequestQueryString
-        (Q.simpleQueryToQuery $ ("oldest", B8.pack ts) : address)
-        req
+  HTTP.setRequestQueryString (Q.simpleQueryToQuery $ arg : address) req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/conversations.history"
     address = [("token", B8.pack token), ("channel", B8.pack channel)]
+    arg = maybe ("limit", "1") (("oldest", ) . B8.pack) timestamp
 
 makeGetReactions :: String -> String -> SlackFlag -> HTTP.Request
 makeGetReactions token channel repeatTs = HTTP.setRequestQueryString query req
