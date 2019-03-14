@@ -61,11 +61,7 @@ sAcquireMessages timestamp = do
   checkResponseStatus responseHistory
   let unparsedHistory = HTTP.getResponseBody responseHistory
       parsedHistory = JSON.decode unparsedHistory
-  sResponse <-
-    maybe
-      (throwParseException unparsedHistory >> pure emptySResponse)
-      pure
-      parsedHistory
+  sResponse <- maybe (throwParseException unparsedHistory) pure parsedHistory
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions ::
@@ -82,10 +78,7 @@ sAcquireReactions (Just flag) = do
   let unparsedReactions = HTTP.getResponseBody responseReactions
       parsedReactions = JSON.decode unparsedReactions
   sPostResponse <-
-    maybe
-      (throwParseException unparsedReactions >> pure emptySPostResponse)
-      pure
-      parsedReactions
+    maybe (throwParseException unparsedReactions) pure parsedReactions
   pure $ sPostResponseToReactions sPostResponse
 
 sRouteMsg :: SlackMessage -> BotMessage

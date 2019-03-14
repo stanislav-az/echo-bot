@@ -201,8 +201,8 @@ respondToGetReactions req = do
     s {mockSlackResponseStack = stack {getReactionsRes = Nothing}}
   maybe throwTooManyRequests pure mbRes
 
-throwTooManyRequests :: MockMonad e ResponseLBS
-throwTooManyRequests = throwM TooManyRequests >> pure tooManyRequestsResponse
+throwTooManyRequests :: MockMonad e b
+throwTooManyRequests = throwM TooManyRequests
 
 respondToPostMessage :: HTTP.Request -> MockMonad e ResponseLBS
 respondToPostMessage req = do

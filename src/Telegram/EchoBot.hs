@@ -55,8 +55,7 @@ tGetUpdates _ offset = do
   checkResponseStatus response
   let unparsed = HTTP.getResponseBody response
       parsed = JSON.decode unparsed :: Maybe TResponse
-  tResponse <-
-    maybe (throwParseException unparsed >> pure emptyTResponse) pure parsed
+  tResponse <- maybe (throwParseException unparsed) pure parsed
   pure $ tResponseToModels tResponse
 
 tIteratorTransformation ::

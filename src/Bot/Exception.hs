@@ -29,5 +29,5 @@ checkResponseStatus response =
     status = show $ HTTP.getResponseStatus response
     body = show $ HTTP.getResponseBody response
 
-throwParseException :: (MonadThrow f, Show a) => a -> f ()
+throwParseException :: (MonadThrow f, Show a) => a -> f b
 throwParseException = throwM . NoParse . show
