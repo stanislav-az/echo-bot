@@ -60,22 +60,22 @@ botCycle bot = do
   unless (null rs) $ putFlag (Nothing :: Maybe flag)
   forM_ rs processReact
   forM_ ms $ \msg -> do
-    caseMsg msg
+    processMsg msg
     modifyIterator $ iteratorTransformation bot (Right msg)
   delay 500000
   where
-    caseMsg msg =
+    processMsg msg =
       case routeMsg bot msg of
         HelpMsg -> processHelpMsg msg
         RepeatMsg -> processRepeatMsg msg
-        Msg -> processMsg msg
+        Msg -> processPlainMsg msg
     processHelpMsg msg = do
       helpText <- helpMsg <$> getBotConst
       let hMsg = replaceMsgText bot helpText msg
       sendMsg bot hMsg
       chat <- getTextualChat bot $ Right hMsg
       logChatMessage chat helpText
-    processMsg msg = do
+    processPlainMsg msg = do
       repeat <- defaultRepeatNumber <$> getBotConst
       repeatMap <- getRepeatMap
       let currRepeat = getCurrentRepeatNumber bot repeat repeatMap msg
