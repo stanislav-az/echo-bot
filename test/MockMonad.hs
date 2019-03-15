@@ -73,38 +73,32 @@ instance Bot.MonadTelegramConst (MockMonad Bot.TelegramEnv) where
   getTelegramConst = Bot.tTelegramConst <$> gets mockBotEnv
 
 instance Bot.MonadBotConst (MockMonad Bot.SlackEnv) where
-  getBotConst =
-    let mapEnv f = f <$> gets mockBotEnv
-     in Bot.BotConst <$> mapEnv Bot.sHelpMsg <*> mapEnv Bot.sRepeatMsg <*>
-        mapEnv Bot.sDefaultRepeatNumber
+  getBotConst = Bot.sBotConst <$> gets mockBotEnv
 
 instance Bot.MonadBotConst (MockMonad Bot.TelegramEnv) where
-  getBotConst =
-    let mapEnv f = f <$> gets mockBotEnv
-     in Bot.BotConst <$> mapEnv Bot.tHelpMsg <*> mapEnv Bot.tRepeatMsg <*>
-        mapEnv Bot.tDefaultRepeatNumber
+  getBotConst = Bot.tBotConst <$> gets mockBotEnv
 
-instance Bot.MonadFlagState (MockMonad Bot.SlackEnv) Bot.SlackFlag where
-  getFlag = Bot.sRepeatTimestamp <$> gets mockBotEnv
-  putFlag flag =
+instance Bot.MonadLastMsgState (MockMonad Bot.SlackEnv) Bot.SlackMessage where
+  getLastMsg = Bot.sLastMsg <$> gets mockBotEnv
+  putLastMsg lastMsg =
     modify $ \s@MockIO {..} ->
-      s {mockBotEnv = mockBotEnv {Bot.sRepeatTimestamp = flag}}
+      s {mockBotEnv = mockBotEnv {Bot.sLastMsg = lastMsg}}
 
-instance Bot.MonadFlagState (MockMonad Bot.TelegramEnv) Bot.TelegramFlag where
-  getFlag = pure Nothing
-  putFlag _ = pure ()
-
-instance Bot.MonadIterState (MockMonad Bot.SlackEnv) Bot.SlackIterator where
-  getIterator = Bot.sLastTimestamp <$> gets mockBotEnv
-  putIterator iter =
+instance Bot.MonadLastMsgState (MockMonad Bot.TelegramEnv) Bot.TelegramMessage where
+  getLastMsg = Bot.tLastMsg <$> gets mockBotEnv
+  putLastMsg lastMsg =
     modify $ \s@MockIO {..} ->
-      s {mockBotEnv = mockBotEnv {Bot.sLastTimestamp = iter}}
+      s {mockBotEnv = mockBotEnv {Bot.tLastMsg = lastMsg}}
 
-instance Bot.MonadIterState (MockMonad Bot.TelegramEnv) Bot.TelegramIterator where
-  getIterator = Bot.tLastUpdateId <$> gets mockBotEnv
-  putIterator iter =
+instance Bot.MonadFutureMsgState (MockMonad Bot.SlackEnv) Bot.SlackMessage where
+  getFutureMsg = Bot.sFutureMsg <$> gets mockBotEnv
+  putFutureMsg futureMsg =
     modify $ \s@MockIO {..} ->
-      s {mockBotEnv = mockBotEnv {Bot.tLastUpdateId = iter}}
+      s {mockBotEnv = mockBotEnv {Bot.sFutureMsg = futureMsg}}
+
+instance Bot.MonadFutureMsgState (MockMonad Bot.TelegramEnv) Bot.TelegramMessage where
+  getFutureMsg = pure Nothing
+  putFutureMsg _ = pure ()
 
 instance Bot.MonadRepeatMapState (MockMonad Bot.SlackEnv) Bot.SlackRepeatMap where
   getRepeatMap = Bot.sRepeatMap <$> gets mockBotEnv

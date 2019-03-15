@@ -2,31 +2,37 @@
 
 module MockConfig where
 
-import Bot.BotClass (SlackConst(..), TelegramConst(..))
+import Bot.BotClass (BotConst(..), SlackConst(..), TelegramConst(..))
 import Bot.BotMonad (SlackEnv(..), TelegramEnv(..))
 import qualified Data.HashMap.Strict as HM (empty)
 
 getTelegramEnv :: TelegramEnv
 getTelegramEnv =
   TelegramEnv
-    { tTelegramConst = TelegramConst "telegram_token"
-    , tLastUpdateId = Nothing
+    { tBotConst =
+        BotConst
+          { helpMsg = "telegram_help_msg"
+          , repeatMsg = "telegram_repeat_msg"
+          , defaultRepeatNumber = 1
+          }
+    , tTelegramConst = TelegramConst "telegram_token"
+    , tLastMsg = Nothing
     , tRepeatMap = HM.empty
-    , tHelpMsg = "telegram_help_msg"
-    , tRepeatMsg = "telegram_repeat_msg"
-    , tDefaultRepeatNumber = 1
     }
 
 getSlackEnv :: SlackEnv
 getSlackEnv =
   SlackEnv
-    { sSlackConst =
+    { sBotConst =
+        BotConst
+          { helpMsg = "slack_help_msg"
+          , repeatMsg = "slack_repeat_msg"
+          , defaultRepeatNumber = 1
+          }
+    , sSlackConst =
         SlackConst
           {sConstToken = "slack_token", sConstChannel = "slack_channel"}
-    , sLastTimestamp = Nothing
+    , sLastMsg = Nothing
+    , sFutureMsg = Nothing
     , sRepeatMap = Nothing
-    , sRepeatTimestamp = Nothing
-    , sHelpMsg = "slack_help_msg"
-    , sRepeatMsg = "slack_repeat_msg"
-    , sDefaultRepeatNumber = 1
     }

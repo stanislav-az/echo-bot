@@ -5,23 +5,13 @@ module SlackBotSpec
   ) where
 
 import qualified Data.Aeson as JSON (encode)
+import qualified Data.Text as T (Text(..))
 import MockMonad (MockIO(..), runTestSlack, testSlack)
 import MockResponses
 import RequestBody (getReqBodyLBS)
 import Serializer.Slack
 import Slack.Models
 import Test.Hspec (Spec(..), describe, it, shouldBe)
-
-getHistory1 = makeOkResWithBody $ JSON.encode emptySResponse
-
-getHistory2 = makeOkResWithBody $ JSON.encode $ putMsgInSResponse [msg1]
-
-getHistory3 = makeOkResWithBody $ JSON.encode $ putMsgInSResponse [msg1, msg2]
-
-getHistory4 =
-  makeOkResWithBody $ JSON.encode $ putMsgInSResponse [msg1, msg2, msg1]
-
-getHistory5 = makeOkResWithBody $ JSON.encode $ putMsgInSResponse [msg3]
 
 spec :: Spec
 spec = do
@@ -31,22 +21,18 @@ spec = do
       res <- runTestSlack $ testSlack stack
       countConHistoryReqs res `shouldBe` 1
     it "Should work with typical history list" $ do
-      let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg1
-          stack = SlackResponseStack (Just getHistory2) Nothing [postMsg]
+      let stack = SlackResponseStack (Just getHistory2) Nothing [ok]
       res <- runTestSlack $ testSlack stack
       countConHistoryReqs res `shouldBe` 1
     it "Should work with message with reactions list" $ do
-      let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg1
-          stack =
-            SlackResponseStack (Just getHistory3) Nothing $ replicate 2 postMsg
+      let stack = SlackResponseStack (Just getHistory3) Nothing $ replicate 2 ok
       res <- runTestSlack $ testSlack stack
       countConHistoryReqs res `shouldBe` 1
     it "Should get history each cycle" $ do
-      let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg1
-          stack1 =
-            SlackResponseStack (Just getHistory3) Nothing $ replicate 2 postMsg
+      let stack1 =
+            SlackResponseStack (Just getHistory3) Nothing $ replicate 2 ok
           stack2 =
-            SlackResponseStack (Just getHistory4) Nothing $ replicate 3 postMsg
+            SlackResponseStack (Just getHistory4) Nothing $ replicate 3 ok
       res <- runTestSlack $ testSlack stack1 >> testSlack stack2
       countConHistoryReqs res `shouldBe` 2
   describe "Get reactions capability" $ do
@@ -55,16 +41,16 @@ spec = do
       res <- runTestSlack $ testSlack stack
       countGetReactionsReqs res `shouldBe` 0
     it "Should send request if _repeat message was sent" $ do
-      let getR = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg3
-          postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg3
+      let getR = makeOkPostResWithMsg msg3
+          postMsg = makeOkPostResWithMsg msg3
           stack1 = SlackResponseStack (Just getHistory5) Nothing [postMsg]
           stack2 = SlackResponseStack (Just getHistory1) (Just getR) []
       res <- runTestSlack $ testSlack stack1 >> testSlack stack2
       countGetReactionsReqs res `shouldBe` 1
     it
       "Should stop sending requests if received some (even not parsable) reactions" $ do
-      let getR = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg2
-          postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg3
+      let getR = makeOkPostResWithMsg msg2
+          postMsg = makeOkPostResWithMsg msg3
           stack1 = SlackResponseStack (Just getHistory5) Nothing [postMsg]
           stack2 = SlackResponseStack (Just getHistory1) (Just getR) []
           stack3 = SlackResponseStack (Just getHistory1) Nothing []
@@ -72,8 +58,8 @@ spec = do
         runTestSlack $ testSlack stack1 >> testSlack stack2 >> testSlack stack3
       countGetReactionsReqs res `shouldBe` 1
     it "Should continue sending requests if not received any reactions" $ do
-      let getR = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg3
-          postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg3
+      let getR = makeOkPostResWithMsg msg3
+          postMsg = makeOkPostResWithMsg msg3
           stack1 = SlackResponseStack (Just getHistory5) Nothing [postMsg]
           stack2 = SlackResponseStack (Just getHistory1) (Just getR) []
           stack3 = SlackResponseStack (Just getHistory1) (Just getR) []
@@ -86,72 +72,91 @@ spec = do
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 0
     it "Should send messages back with the same text" $ do
-      let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg1
-          stack = SlackResponseStack (Just getHistory2) Nothing [postMsg]
-          body = JSON.encode $ constructSPostMessage slackMsg1 "slack_channel"
+      let stack = SlackResponseStack (Just getHistory2) Nothing [ok]
+          body = JSON.encode slackMsg1
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 1
-      (take 1 $ getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
+      (getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
     it "Should send specific help message on _help command" $ do
-      let getH = makeOkResWithBody $ JSON.encode $ putMsgInSResponse [msg4]
-          postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg4
-          stack = SlackResponseStack (Just getH) Nothing [postMsg]
-          body = JSON.encode $ constructSPostMessage slackMsg2 "slack_channel"
+      let getH = makeOkResWithMsgs [msg4]
+          stack = SlackResponseStack (Just getH) Nothing [ok]
+          body = JSON.encode slackMsg2
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 1
-      (take 1 $ getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
+      (getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
     it
       "Should send specific repeat message on _repeat command and append current repeat number to it" $ do
-      let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg4
+      let postMsg = makeOkPostResWithMsg msg3
           stack = SlackResponseStack (Just getHistory5) Nothing [postMsg]
-          body = JSON.encode $ constructSPostMessage slackMsg3 "slack_channel"
+          body = JSON.encode slackMsg3
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 1
-      (take 1 $ getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
+      (getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
     it "Should respond with messages in correct order" $ do
-      let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg1
-          stack =
-            SlackResponseStack (Just getHistory3) Nothing $ replicate 2 postMsg
-          body1 = JSON.encode $ constructSPostMessage slackMsg1 "slack_channel"
-          body2 = JSON.encode $ constructSPostMessage slackMsg4 "slack_channel"
+      let stack = SlackResponseStack (Just getHistory3) Nothing $ replicate 2 ok
+          body1 = JSON.encode slackMsg1
+          body2 = JSON.encode slackMsg4
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 2
-      (take 2 $ getReqBodyLBS <$> postMessageReq res) `shouldBe` [body1, body2]
+      (getReqBodyLBS <$> postMessageReq res) `shouldBe` [body1, body2]
     it "Should respond with messages each cycle when there are updates" $ do
-      let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg1
-          stack1 =
-            SlackResponseStack (Just getHistory3) Nothing $ replicate 2 postMsg
+      let stack1 =
+            SlackResponseStack (Just getHistory3) Nothing $ replicate 2 ok
           stack2 =
-            SlackResponseStack (Just getHistory4) Nothing $ replicate 3 postMsg
+            SlackResponseStack (Just getHistory4) Nothing $ replicate 3 ok
       res <- runTestSlack $ testSlack stack1 >> testSlack stack2
       countPostMessageReqs res `shouldBe` 5
     it "Should repeat messages a choosen number of times" $ do
-      let getH = makeOkResWithBody $ JSON.encode $ putMsgInSResponse [msg2]
-          getR = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg5
-          postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg3
-          stack0 = SlackResponseStack (Just getHistory2) Nothing [postMsg]
+      let getH = makeOkResWithMsgs [msg2]
+          getR = makeOkPostResWithMsg msg5
+          postMsg = makeOkPostResWithMsg msg3
+          stack0 = SlackResponseStack (Just getHistory2) Nothing [ok]
           stack1 = SlackResponseStack (Just getHistory5) Nothing [postMsg]
           stack2 = SlackResponseStack (Just getHistory1) (Just getR) []
-          stack3 = SlackResponseStack (Just getH) Nothing $ replicate 3 postMsg
-          body1 = JSON.encode $ constructSPostMessage slackMsg1 "slack_channel"
-          body2 = JSON.encode $ constructSPostMessage slackMsg3 "slack_channel"
-          body3 = JSON.encode $ constructSPostMessage slackMsg4 "slack_channel"
+          stack3 = SlackResponseStack (Just getH) Nothing $ replicate 3 ok
+          body1 = JSON.encode slackMsg1
+          body2 = JSON.encode slackMsg3
+          body3 = JSON.encode slackMsg4
       res <-
         runTestSlack $
         testSlack stack0 >> testSlack stack1 >> testSlack stack2 >>
         testSlack stack3
       countPostMessageReqs res `shouldBe` 5
-      (take 5 $ getReqBodyLBS <$> postMessageReq res) `shouldBe`
+      (getReqBodyLBS <$> postMessageReq res) `shouldBe`
         [body3, body3, body3, body2, body1]
-
-putMsgInSResponse :: [SMessage] -> SResponse
-putMsgInSResponse = SResponse True . Just
 
 emptySResponse :: SResponse
 emptySResponse = SResponse {sResponseIsOk = True, sResponseMsgs = Just []}
 
+putMsgsInSResponse :: [SMessage] -> SResponse
+putMsgsInSResponse = SResponse True . Just
+
+putTextInSPostMessage :: T.Text -> SPostMessage
+putTextInSPostMessage = constructSPostMessage "slack_channel"
+
 putMsgInSPostResponse :: SMessage -> SPostResponse
 putMsgInSPostResponse = SPostResponse True . Just
+
+makeOkResWithMsgs :: [SMessage] -> ResponseLBS
+makeOkResWithMsgs = makeOkResWithBody . JSON.encode . putMsgsInSResponse
+
+makeOkPostResWithMsg :: SMessage -> ResponseLBS
+makeOkPostResWithMsg = makeOkResWithBody . JSON.encode . putMsgInSPostResponse
+
+getHistory1 :: ResponseLBS
+getHistory1 = makeOkResWithBody $ JSON.encode emptySResponse
+
+getHistory2 :: ResponseLBS
+getHistory2 = makeOkResWithMsgs [msg1]
+
+getHistory3 :: ResponseLBS
+getHistory3 = makeOkResWithMsgs [msg1, msg2]
+
+getHistory4 :: ResponseLBS
+getHistory4 = makeOkResWithMsgs [msg1, msg2, msg1]
+
+getHistory5 :: ResponseLBS
+getHistory5 = makeOkResWithMsgs [msg3]
 
 msg1 :: SMessage
 msg1 =
@@ -161,18 +166,6 @@ msg1 =
     , sMessageTimestamp = "0001"
     , sMessageReactions = Nothing
     }
-
-slackMsg1 :: SlackMessage
-slackMsg1 = SlackMessage "0001" "Hello, this is captain speaking"
-
-slackMsg2 :: SlackMessage
-slackMsg2 = SlackMessage "0004" "slack_help_msg"
-
-slackMsg3 :: SlackMessage
-slackMsg3 = SlackMessage "0003" "slack_repeat_msg1"
-
-slackMsg4 :: SlackMessage
-slackMsg4 = SlackMessage "0002" "Hello again, this is captain speaking"
 
 msg2 :: SMessage
 msg2 =
@@ -209,3 +202,15 @@ msg5 =
     , sMessageTimestamp = "0005"
     , sMessageReactions = Just [SReaction "three"]
     }
+
+slackMsg1 :: SPostMessage
+slackMsg1 = putTextInSPostMessage "Hello, this is captain speaking"
+
+slackMsg2 :: SPostMessage
+slackMsg2 = putTextInSPostMessage "slack_help_msg"
+
+slackMsg3 :: SPostMessage
+slackMsg3 = putTextInSPostMessage "slack_repeat_msg1"
+
+slackMsg4 :: SPostMessage
+slackMsg4 = putTextInSPostMessage "Hello again, this is captain speaking"
