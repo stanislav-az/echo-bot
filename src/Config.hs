@@ -2,7 +2,7 @@
 
 module Config where
 
-import Bot.BotClass (SlackConst(..), TelegramConst(..))
+import Bot.BotClass (BotConst(..), SlackConst(..), TelegramConst(..))
 import Bot.BotMonad (SlackEnv(..), TelegramEnv(..))
 import qualified Control.Logger.Simple as L (LogConfig(..))
 import qualified Data.Configurator as C
@@ -58,12 +58,10 @@ makeTelegramEnv = do
   rNum <- getByName conf "telegram.repeat_number"
   pure $
     TelegramEnv
-      { tTelegramConst = TelegramConst token
-      , tLastUpdateId = Nothing
+      { tBotConst = BotConst hMsg rMsg rNum
+      , tTelegramConst = TelegramConst token
+      , tLastMsg = Nothing
       , tRepeatMap = HM.empty
-      , tHelpMsg = hMsg
-      , tRepeatMsg = rMsg
-      , tDefaultRepeatNumber = rNum
       }
 
 makeSlackEnv :: IO SlackEnv
@@ -76,11 +74,9 @@ makeSlackEnv = do
   rNum <- getByName conf "slack.repeat_number"
   pure $
     SlackEnv
-      { sSlackConst = SlackConst {sConstToken = token, sConstChannel = channel}
-      , sLastTimestamp = Nothing
+      { sBotConst = BotConst hMsg rMsg rNum
+      , sSlackConst = SlackConst token channel
+      , sLastMsg = Nothing
+      , sFutureMsg = Nothing
       , sRepeatMap = Nothing
-      , sRepeatTimestamp = Nothing
-      , sHelpMsg = hMsg
-      , sRepeatMsg = rMsg
-      , sDefaultRepeatNumber = rNum
       }

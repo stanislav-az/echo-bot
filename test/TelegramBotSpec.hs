@@ -58,14 +58,14 @@ spec = do
     it "Should send messages back with the same text" $ do
       let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd1]
           stack = TelegramResponseStack (Just getU) [ok] []
-          body = JSON.encode $ tMessageToPostMessage telegramMsg1
+          body = JSON.encode $ constructTPostMessage telegramMsg1
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe` [body]
     it "Should send specific help message on /help command" $ do
       let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd9]
           stack = TelegramResponseStack (Just getU) [ok] []
-          body = JSON.encode $ tMessageToPostMessage telegramMsg9
+          body = JSON.encode $ constructTPostMessage telegramMsg9
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe` [body]
@@ -73,7 +73,7 @@ spec = do
       "Should send specific repeat message on /repeat command and append current repeat number to it" $ do
       let getU = makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd10]
           stack = TelegramResponseStack (Just getU) [ok] []
-          body = JSON.encode $ tMessageToPostRepeatMessage telegramMsg10
+          body = JSON.encode $ constructTPostRepeatMessage telegramMsg10
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe` [body]
@@ -81,8 +81,8 @@ spec = do
       let getU =
             makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd7, upd8]
           stack = TelegramResponseStack (Just getU) (replicate 2 ok) []
-          body1 = JSON.encode $ tMessageToPostMessage telegramMsg7
-          body2 = JSON.encode $ tMessageToPostMessage telegramMsg8
+          body1 = JSON.encode $ constructTPostMessage telegramMsg7
+          body2 = JSON.encode $ constructTPostMessage telegramMsg8
       res <- runTestTelegram $ testTelegram stack
       countSendMessageReqs res `shouldBe` 2
       (take 2 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe` [body2, body1]
@@ -92,9 +92,9 @@ spec = do
             makeOkResWithBody $ JSON.encode $ putUpdatesInTResponse [upd7, upd8]
           stack1 = TelegramResponseStack (Just getU1) [ok] []
           stack2 = TelegramResponseStack (Just getU2) (replicate 2 ok) []
-          body1 = JSON.encode $ tMessageToPostMessage telegramMsg1
-          body2 = JSON.encode $ tMessageToPostMessage telegramMsg7
-          body3 = JSON.encode $ tMessageToPostMessage telegramMsg8
+          body1 = JSON.encode $ constructTPostMessage telegramMsg1
+          body2 = JSON.encode $ constructTPostMessage telegramMsg7
+          body3 = JSON.encode $ constructTPostMessage telegramMsg8
       res <- runTestTelegram $ testTelegram stack1 >> testTelegram stack2
       countSendMessageReqs res `shouldBe` 3
       (take 3 $ getReqBodyLBS <$> sendMessageReq res) `shouldBe`
@@ -109,9 +109,9 @@ spec = do
           stack2 = TelegramResponseStack (Just getU2) [ok] []
           stack3 = TelegramResponseStack (Just getU3) [] [ok]
           stack4 = TelegramResponseStack (Just getU4) (replicate 3 ok) []
-          body1 = JSON.encode $ tMessageToPostMessage telegramMsg1
-          body2 = JSON.encode $ tMessageToPostRepeatMessage telegramMsg10
-          body3 = JSON.encode $ tMessageToPostMessage telegramMsg8
+          body1 = JSON.encode $ constructTPostMessage telegramMsg1
+          body2 = JSON.encode $ constructTPostRepeatMessage telegramMsg10
+          body3 = JSON.encode $ constructTPostMessage telegramMsg8
       res <-
         runTestTelegram $
         testTelegram stack1 >> testTelegram stack2 >> testTelegram stack3 >>
@@ -147,6 +147,9 @@ spec = do
 
 putUpdatesInTResponse :: [TUpdate] -> TResponse
 putUpdatesInTResponse = TResponse True
+
+emptyTResponse :: TResponse
+emptyTResponse = TResponse True []
 
 upd1 :: TUpdate
 upd1 = TUpdate 1 msg1 Nothing

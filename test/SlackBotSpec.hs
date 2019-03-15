@@ -88,7 +88,7 @@ spec = do
     it "Should send messages back with the same text" $ do
       let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg1
           stack = SlackResponseStack (Just getHistory2) Nothing [postMsg]
-          body = JSON.encode $ sMessageToPostMessage slackMsg1 "slack_channel"
+          body = JSON.encode $ constructSPostMessage slackMsg1 "slack_channel"
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
@@ -96,7 +96,7 @@ spec = do
       let getH = makeOkResWithBody $ JSON.encode $ putMsgInSResponse [msg4]
           postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg4
           stack = SlackResponseStack (Just getH) Nothing [postMsg]
-          body = JSON.encode $ sMessageToPostMessage slackMsg2 "slack_channel"
+          body = JSON.encode $ constructSPostMessage slackMsg2 "slack_channel"
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
@@ -104,7 +104,7 @@ spec = do
       "Should send specific repeat message on _repeat command and append current repeat number to it" $ do
       let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg4
           stack = SlackResponseStack (Just getHistory5) Nothing [postMsg]
-          body = JSON.encode $ sMessageToPostMessage slackMsg3 "slack_channel"
+          body = JSON.encode $ constructSPostMessage slackMsg3 "slack_channel"
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 1
       (take 1 $ getReqBodyLBS <$> postMessageReq res) `shouldBe` [body]
@@ -112,8 +112,8 @@ spec = do
       let postMsg = makeOkResWithBody $ JSON.encode $ putMsgInSPostResponse msg1
           stack =
             SlackResponseStack (Just getHistory3) Nothing $ replicate 2 postMsg
-          body1 = JSON.encode $ sMessageToPostMessage slackMsg1 "slack_channel"
-          body2 = JSON.encode $ sMessageToPostMessage slackMsg4 "slack_channel"
+          body1 = JSON.encode $ constructSPostMessage slackMsg1 "slack_channel"
+          body2 = JSON.encode $ constructSPostMessage slackMsg4 "slack_channel"
       res <- runTestSlack $ testSlack stack
       countPostMessageReqs res `shouldBe` 2
       (take 2 $ getReqBodyLBS <$> postMessageReq res) `shouldBe` [body1, body2]
@@ -133,9 +133,9 @@ spec = do
           stack1 = SlackResponseStack (Just getHistory5) Nothing [postMsg]
           stack2 = SlackResponseStack (Just getHistory1) (Just getR) []
           stack3 = SlackResponseStack (Just getH) Nothing $ replicate 3 postMsg
-          body1 = JSON.encode $ sMessageToPostMessage slackMsg1 "slack_channel"
-          body2 = JSON.encode $ sMessageToPostMessage slackMsg3 "slack_channel"
-          body3 = JSON.encode $ sMessageToPostMessage slackMsg4 "slack_channel"
+          body1 = JSON.encode $ constructSPostMessage slackMsg1 "slack_channel"
+          body2 = JSON.encode $ constructSPostMessage slackMsg3 "slack_channel"
+          body3 = JSON.encode $ constructSPostMessage slackMsg4 "slack_channel"
       res <-
         runTestSlack $
         testSlack stack0 >> testSlack stack1 >> testSlack stack2 >>
@@ -146,6 +146,9 @@ spec = do
 
 putMsgInSResponse :: [SMessage] -> SResponse
 putMsgInSResponse = SResponse True . Just
+
+emptySResponse :: SResponse
+emptySResponse = SResponse {sResponseIsOk = True, sResponseMsgs = Just []}
 
 putMsgInSPostResponse :: SMessage -> SPostResponse
 putMsgInSPostResponse = SPostResponse True . Just

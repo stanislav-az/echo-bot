@@ -56,7 +56,7 @@ tGetUpdates _ offset = do
   let unparsed = HTTP.getResponseBody response
       parsed = JSON.decode unparsed :: Maybe TResponse
   tResponse <- maybe (throwParseException unparsed) pure parsed
-  pure $ tResponseToModels tResponse
+  pure $ tResponseToMsgs tResponse
 
 tIteratorTransformation ::
      Either TelegramReaction TelegramMessage -> Maybe Integer -> Maybe Integer
@@ -99,8 +99,8 @@ tParseReaction ::
   => TelegramReaction
   -> m (Maybe Int)
 tParseReaction tr@TelegramReaction {..} = do
-  let btn = T.readMaybe trCallbackData :: Maybe Int
-  when (isNothing btn) $ throwM $ BadCallbackData trCallbackData
+  let btn = T.readMaybe tcData :: Maybe Int
+  when (isNothing btn) $ throwM $ BadCallbackData tcData
   token <- tConstToken <$> getTelegramConst
   let req = makeAnswerCallbackQuery token tr
   response <- http req

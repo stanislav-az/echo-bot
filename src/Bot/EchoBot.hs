@@ -27,7 +27,7 @@ data EchoBot m msg res rmap = EchoBot
   , replaceMsgText :: T.Text -> msg -> msg
   , repeatMapTransformation :: Int -> msg -> rmap -> rmap
   , getCurrentRepeatNumber :: Int -> rmap -> msg -> Int
-  , convertToRepeatNumber :: msg -> m (Maybe Int)
+  , parseToRepeatNumber :: msg -> m (Maybe Int)
   , convertToTextualChat :: msg -> m T.Text
   , convertToTextualMsg :: msg -> T.Text
   }
@@ -96,7 +96,7 @@ botCycle bot = do
       chat <- convertToTextualChat bot msg
       logChatMessage chat modRepeatText
     processReact react = do
-      mbRepeat <- convertToRepeatNumber bot react
+      mbRepeat <- parseToRepeatNumber bot react
       maybe (pure ()) (modifyAndLog react) mbRepeat
     modifyAndLog react repeat = do
       modifyRepeatMap $ repeatMapTransformation bot repeat react

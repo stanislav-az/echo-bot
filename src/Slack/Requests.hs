@@ -5,6 +5,7 @@ module Slack.Requests where
 
 import qualified Data.ByteString.Char8 as B8 (pack)
 import Data.String (fromString)
+import qualified Data.Text as T (Text(..))
 import qualified Network.HTTP.Simple as HTTP
   ( Request(..)
   , addRequestHeader
@@ -13,7 +14,7 @@ import qualified Network.HTTP.Simple as HTTP
   , setRequestQueryString
   )
 import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
-import Serializer.Slack (sMessageToPostMessage)
+import Serializer.Slack (constructSPostMessage)
 import Slack.Models (SlackFlag(..), SlackIterator(..), SlackMessage(..))
 
 makeConHistory :: Maybe SlackIterator -> String -> String -> HTTP.Request
@@ -35,11 +36,11 @@ makeGetReactions token channel repeatTs = HTTP.setRequestQueryString query req
         , ("timestamp", B8.pack repeatTs)
         ]
 
-makePostMessage :: String -> String -> SlackMessage -> HTTP.Request
-makePostMessage token channel msg =
+makePostMessage :: String -> String -> T.Text -> HTTP.Request
+makePostMessage token channel text =
   HTTP.setRequestBodyJSON postMessage reqWithHeaders
   where
     req = HTTP.parseRequest_ "POST https://slack.com/api/chat.postMessage"
     reqWithHeaders =
       HTTP.addRequestHeader "Authorization" ("Bearer " <> fromString token) req
-    postMessage = sMessageToPostMessage msg channel
+    postMessage = constructSPostMessage channel text

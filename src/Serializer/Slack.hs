@@ -75,28 +75,21 @@ instance FromJSON SReaction where
 instance ToJSON SReaction where
   toJSON SReaction {..} = object ["name" .= sReactionName]
 
-emptySPostResponse :: SPostResponse
-emptySPostResponse = SPostResponse False Nothing
-
-emptySResponse :: SResponse
-emptySResponse = SResponse {sResponseIsOk = True, sResponseMsgs = Just []}
-
 sResponseToMsgs :: SResponse -> [SlackMessage]
 sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
   where
     f ms SMessage {..} =
       case sMessageUser of
         Nothing -> ms
-        _ -> SlackMessage sMessageTimestamp sMessageText : ms
+        _ -> Message sMessageTimestamp sMessageText : ms
 
-sPostResponseToReactions :: SPostResponse -> [SlackReaction]
+sPostResponseToReactions :: SPostResponse -> [SlackMessage]
 sPostResponseToReactions sPostResponse =
-  maybe [] (fmap SlackReaction) reactionNames
+  maybe [] (fmap Reaction) reactionNames
   where
     reactionNames =
       fmap sReactionName <$>
       (sPostResponseMsg sPostResponse >>= sMessageReactions)
 
-sMessageToPostMessage :: SlackMessage -> String -> SPostMessage
-sMessageToPostMessage SlackMessage {..} channel =
-  SPostMessage {sPostMessageChannel = channel, sPostMessageText = smText}
+constructSPostMessage :: String -> T.Text -> SPostMessage
+constructSPostMessage = SPostMessage

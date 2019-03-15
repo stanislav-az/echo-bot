@@ -10,7 +10,7 @@ data TelegramMessage
   | Callback { tcUpdateId :: Integer
              , tcId :: String
              , tcChatId :: Integer
-             , tcCallbackData :: String }
+             , tcData :: String }
   deriving (Eq, Show)
 
 type TelegramAnticipation = ()

@@ -12,9 +12,9 @@ import qualified Network.HTTP.Simple as HTTP
   )
 import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
 import Serializer.Telegram
-  ( tMessageToPostMessage
-  , tMessageToPostRepeatMessage
-  , tReactionToCallbackAnswer
+  ( constructTPostMessage
+  , constructTPostRepeatMessage
+  , callbackToCallbackAnswer
   )
 import Telegram.Models
 
@@ -37,14 +37,14 @@ makeSendMessage token msg = HTTP.setRequestBodyJSON postMessage req
   where
     req =
       HTTP.parseRequest_ $ "POST " ++ standardRequest token ++ "/sendMessage"
-    postMessage = tMessageToPostMessage msg
+    postMessage = constructTPostMessage msg
 
 makeCallbackQuery :: String -> TelegramMessage -> HTTP.Request
 makeCallbackQuery token msg = HTTP.setRequestBodyJSON postMessage req
   where
     req =
       HTTP.parseRequest_ $ "POST " ++ standardRequest token ++ "/sendMessage"
-    postMessage = tMessageToPostRepeatMessage msg
+    postMessage = constructTPostRepeatMessage msg
 
 makeAnswerCallbackQuery :: String -> TelegramReaction -> HTTP.Request
 makeAnswerCallbackQuery token tr = HTTP.setRequestBodyJSON answerMessage req
@@ -52,4 +52,4 @@ makeAnswerCallbackQuery token tr = HTTP.setRequestBodyJSON answerMessage req
     req =
       HTTP.parseRequest_ $
       "POST " ++ standardRequest token ++ "/answerCallbackQuery"
-    answerMessage = tReactionToCallbackAnswer tr
+    answerMessage = callbackToCallbackAnswer tr

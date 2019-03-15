@@ -55,8 +55,10 @@ data TCallbackAnswer = TCallbackAnswer
   , tCallbackAnswerText :: T.Text
   } deriving (Eq, Show)
 
-newtype TPostMessage =
-  TPostMessage TelegramMessage
+data TPostMessage = TPostMessage
+  { tPostMessageChatId :: Integer
+  , tPostMessageText :: T.Text
+  }
 
 instance FromJSON TResponse where
   parseJSON =
@@ -113,8 +115,8 @@ instance ToJSON TCallbackQuery where
       ]
 
 instance ToJSON TPostMessage where
-  toJSON (TPostMessage TelegramMessage {..}) =
-    object ["chat_id" .= tmChatId, "text" .= tmText]
+  toJSON TPostMessage {..} =
+    object ["chat_id" .= tPostMessageChatId, "text" .= tPostMessageText]
 
 instance ToJSON TPostRepeatMessage where
   toJSON TPostRepeatMessage {..} =
@@ -138,39 +140,31 @@ instance ToJSON TCallbackAnswer where
       , "text" .= tCallbackAnswerText
       ]
 
-emptyTResponse :: TResponse
-emptyTResponse = TResponse True []
-
-tResponseToModels :: TResponse -> ([TelegramMessage], [TelegramReaction])
-tResponseToModels tResponse = foldr go ([], []) (tResponseResult tResponse)
+tResponseToMsgs :: TResponse -> [TelegramMessage]
+tResponseToMsgs tResponse = foldr go [] (tResponseResult tResponse)
   where
-    go (TUpdate uid a b) (msgs, cbs) =
-      (getMsg uid a ++ msgs, getCb uid b ++ cbs)
+    go (TUpdate uid a b) ms = getMsg uid a ++ getCb uid b ++ ms
     getMsg uid (Just (TMessage _ (TChat chatID) (Just txt))) =
-      [TelegramMessage uid chatID txt]
+      [Message uid chatID txt]
     getMsg _ _ = []
     getCb uid (Just (TCallbackQuery queryID (Just msg) (Just btnPressed))) =
-      [TelegramReaction uid queryID (tChatId $ tMessageChat msg) btnPressed]
+      [Callback uid queryID (tChatId $ tMessageChat msg) btnPressed]
     getCb _ _ = []
 
-tMessageToPostMessage :: TelegramMessage -> TPostMessage
-tMessageToPostMessage = TPostMessage
+constructTPostMessage = TPostMessage
 
-tMessageToPostRepeatMessage :: TelegramMessage -> TPostRepeatMessage
-tMessageToPostRepeatMessage TelegramMessage {..} =
+constructTPostRepeatMessage chatId text =
   TPostRepeatMessage
-    { tRepeatMsgChatId = tmChatId
-    , tRepeatMsgText = tmText
+    { tRepeatMsgChatId = chatId
+    , tRepeatMsgText = text
     , tRepeatMsgReplyMarkup = tStandardKeyboard
     }
+
+constructTCallbackAnswer queryId text =
+  TCallbackAnswer queryId $
+  "You've choosen to repeat messages " <> text <> " times"
 
 tStandardKeyboard :: TKeyboard
 tStandardKeyboard = TKeyboard {tKeyboard = [button <$> [1 .. 5]]}
   where
     button i = TButton {tButtonText = textify i, tButtonCallbackData = show i}
-
-tReactionToCallbackAnswer :: TelegramReaction -> TCallbackAnswer
-tReactionToCallbackAnswer TelegramReaction {..} = TCallbackAnswer trId msg
-  where
-    msg =
-      "You've choosen to repeat messages " <> T.pack trCallbackData <> " times"

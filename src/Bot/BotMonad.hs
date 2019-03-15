@@ -13,22 +13,18 @@ import Slack.Models
 import Telegram.Models
 
 data TelegramEnv = TelegramEnv
-  { tTelegramConst :: TelegramConst
-  , tLastUpdateId :: Maybe Integer
+  { tBotConst :: BotConst
+  , tTelegramConst :: TelegramConst
+  , tLastMsg :: Maybe TelegramMessage
   , tRepeatMap :: HM.HashMap Integer Int
-  , tHelpMsg :: T.Text
-  , tRepeatMsg :: T.Text
-  , tDefaultRepeatNumber :: Int
   } deriving (Eq, Show)
 
 data SlackEnv = SlackEnv
-  { sSlackConst :: SlackConst
-  , sLastTimestamp :: Maybe String
+  { sBotConst :: BotConst
+  , sSlackConst :: SlackConst
+  , sLastMsg :: Maybe SlackMessage
+  , sFutureMsg :: Maybe SlackMessage
   , sRepeatMap :: Maybe Int
-  , sRepeatTimestamp :: Maybe String
-  , sHelpMsg :: T.Text
-  , sRepeatMsg :: T.Text
-  , sDefaultRepeatNumber :: Int
   } deriving (Eq, Show)
 
 data BotException
@@ -80,28 +76,26 @@ instance MonadTelegramConst (BotMonad TelegramEnv) where
   getTelegramConst = gets tTelegramConst
 
 instance MonadBotConst (BotMonad SlackEnv) where
-  getBotConst =
-    BotConst <$> gets sHelpMsg <*> gets sRepeatMsg <*> gets sDefaultRepeatNumber
+  getBotConst = gets sBotConst
 
 instance MonadBotConst (BotMonad TelegramEnv) where
-  getBotConst =
-    BotConst <$> gets tHelpMsg <*> gets tRepeatMsg <*> gets tDefaultRepeatNumber
+  getBotConst = gets tBotConst
 
-instance MonadFlagState (BotMonad SlackEnv) SlackFlag where
-  getFlag = gets sRepeatTimestamp
-  putFlag flag = modify $ \s -> s {sRepeatTimestamp = flag}
+instance MonadLastMsgState (BotMonad SlackEnv) SlackMessage where
+  getLastMsg = gets sLastMsg
+  putLastMsg lastMsg = modify $ \s -> s {sLastMsg = lastMsg}
 
-instance MonadFlagState (BotMonad TelegramEnv) TelegramFlag where
-  getFlag = pure Nothing
-  putFlag _ = pure ()
+instance MonadLastMsgState (BotMonad TelegramEnv) TelegramMessage where
+  getLastMsg = gets tLastMsg
+  putLastMsg lastMsg = modify $ \s -> s {tLastMsg = lastMsg}
 
-instance MonadIterState (BotMonad SlackEnv) SlackIterator where
-  getIterator = gets sLastTimestamp
-  putIterator ts = modify $ \s -> s {sLastTimestamp = ts}
+instance MonadFutureMsgState (BotMonad SlackEnv) SlackMessage where
+  getFutureMsg = gets sFutureMsg
+  putFutureMsg futureMsg = modify $ \s -> s {sFutureMsg = futureMsg}
 
-instance MonadIterState (BotMonad TelegramEnv) TelegramIterator where
-  getIterator = gets tLastUpdateId
-  putIterator uid = modify $ \s -> s {tLastUpdateId = uid}
+instance MonadFutureMsgState (BotMonad TelegramEnv) TelegramMessage where
+  getFutureMsg = pure Nothing
+  putFutureMsg _ = pure ()
 
 instance MonadRepeatMapState (BotMonad SlackEnv) SlackRepeatMap where
   getRepeatMap = gets sRepeatMap
