@@ -151,8 +151,10 @@ tResponseToMsgs tResponse = foldr go [] (tResponseResult tResponse)
       [Callback uid queryID (tChatId $ tMessageChat msg) btnPressed]
     getCb _ _ = []
 
+constructTPostMessage :: Integer -> T.Text -> TPostMessage
 constructTPostMessage = TPostMessage
 
+constructTPostRepeatMessage :: Integer -> T.Text -> TPostRepeatMessage
 constructTPostRepeatMessage chatId text =
   TPostRepeatMessage
     { tRepeatMsgChatId = chatId
@@ -160,6 +162,7 @@ constructTPostRepeatMessage chatId text =
     , tRepeatMsgReplyMarkup = tStandardKeyboard
     }
 
+constructTCallbackAnswer :: String -> T.Text -> TCallbackAnswer
 constructTCallbackAnswer queryId text =
   TCallbackAnswer queryId $
   "You've choosen to repeat messages " <> text <> " times"

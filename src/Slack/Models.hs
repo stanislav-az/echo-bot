@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Slack.Models where
 
 import qualified Data.ByteString.Lazy as LB (ByteString(..))
@@ -9,10 +11,14 @@ data SlackMessage
   | Reaction { srName :: String }
   deriving (Eq, Show)
 
-type SlackAnticipation = LB.ByteString
+type SlackResponse = LB.ByteString
 
 type SlackRepeatMap = Maybe Int
 
-type SlackIterator = String
+sIsMessage :: SlackMessage -> Bool
+sIsMessage Message {..} = True
+sIsMessage _ = False
 
-type SlackFlag = String
+sIsReaction :: SlackMessage -> Bool
+sIsReaction Reaction {..} = True
+sIsReaction _ = False

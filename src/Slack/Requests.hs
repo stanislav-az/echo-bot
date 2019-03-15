@@ -15,17 +15,17 @@ import qualified Network.HTTP.Simple as HTTP
   )
 import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
 import Serializer.Slack (constructSPostMessage)
-import Slack.Models (SlackFlag(..), SlackIterator(..), SlackMessage(..))
+import Slack.Models (SlackMessage(..))
 
-makeConHistory :: Maybe SlackIterator -> String -> String -> HTTP.Request
-makeConHistory timestamp token channel =
+makeConHistory :: String -> String -> Maybe String -> HTTP.Request
+makeConHistory token channel timestamp =
   HTTP.setRequestQueryString (Q.simpleQueryToQuery $ arg : address) req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/conversations.history"
     address = [("token", B8.pack token), ("channel", B8.pack channel)]
     arg = maybe ("limit", "1") (("oldest", ) . B8.pack) timestamp
 
-makeGetReactions :: String -> String -> SlackFlag -> HTTP.Request
+makeGetReactions :: String -> String -> String -> HTTP.Request
 makeGetReactions token channel repeatTs = HTTP.setRequestQueryString query req
   where
     req = HTTP.parseRequest_ "GET https://slack.com/api/reactions.get"

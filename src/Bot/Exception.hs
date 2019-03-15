@@ -31,3 +31,6 @@ checkResponseStatus response =
 
 throwParseException :: (MonadThrow f, Show a) => a -> f b
 throwParseException = throwM . NoParse . show
+
+throwBotLogicMisuse :: (MonadThrow f) => String -> f b
+throwBotLogicMisuse = throwM . BotLogicMisuse

@@ -3,6 +3,7 @@
 module Telegram.Requests where
 
 import qualified Data.ByteString.Char8 as B8 (pack)
+import qualified Data.Text as T (Text(..))
 import Ext.Network.HTTP.Types.URI (showToQueryItem)
 import qualified Network.HTTP.Simple as HTTP
   ( Request(..)
@@ -12,17 +13,16 @@ import qualified Network.HTTP.Simple as HTTP
   )
 import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
 import Serializer.Telegram
-  ( constructTPostMessage
+  ( constructTCallbackAnswer
+  , constructTPostMessage
   , constructTPostRepeatMessage
-  , callbackToCallbackAnswer
   )
-import Telegram.Models
 
 standardRequest :: String -> String
 standardRequest = ("https://api.telegram.org/bot" ++)
 
-makeGetUpdates :: Maybe Integer -> String -> HTTP.Request
-makeGetUpdates offset token = HTTP.setRequestQueryString query req
+makeGetUpdates :: String -> Maybe Integer -> HTTP.Request
+makeGetUpdates token offset = HTTP.setRequestQueryString query req
   where
     req = HTTP.parseRequest_ $ "GET " ++ standardRequest token ++ "/getUpdates"
     simpleQuery =
@@ -32,24 +32,25 @@ makeGetUpdates offset token = HTTP.setRequestQueryString query req
     addOffset x = ("offset", showToQueryItem x) : simpleQuery
     query = Q.simpleQueryToQuery $ maybe simpleQuery addOffset offset
 
-makeSendMessage :: String -> TelegramMessage -> HTTP.Request
-makeSendMessage token msg = HTTP.setRequestBodyJSON postMessage req
+makeSendMessage :: String -> Integer -> T.Text -> HTTP.Request
+makeSendMessage token chatId text = HTTP.setRequestBodyJSON postMessage req
   where
     req =
       HTTP.parseRequest_ $ "POST " ++ standardRequest token ++ "/sendMessage"
-    postMessage = constructTPostMessage msg
+    postMessage = constructTPostMessage chatId text
 
-makeCallbackQuery :: String -> TelegramMessage -> HTTP.Request
-makeCallbackQuery token msg = HTTP.setRequestBodyJSON postMessage req
+makeCallbackQuery :: String -> Integer -> T.Text -> HTTP.Request
+makeCallbackQuery token chatId text = HTTP.setRequestBodyJSON postMessage req
   where
     req =
       HTTP.parseRequest_ $ "POST " ++ standardRequest token ++ "/sendMessage"
-    postMessage = constructTPostRepeatMessage msg
+    postMessage = constructTPostRepeatMessage chatId text
 
-makeAnswerCallbackQuery :: String -> TelegramReaction -> HTTP.Request
-makeAnswerCallbackQuery token tr = HTTP.setRequestBodyJSON answerMessage req
+makeAnswerCallbackQuery :: String -> String -> T.Text -> HTTP.Request
+makeAnswerCallbackQuery token queryId text =
+  HTTP.setRequestBodyJSON answerMessage req
   where
     req =
       HTTP.parseRequest_ $
       "POST " ++ standardRequest token ++ "/answerCallbackQuery"
-    answerMessage = callbackToCallbackAnswer tr
+    answerMessage = constructTCallbackAnswer queryId text

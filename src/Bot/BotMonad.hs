@@ -31,6 +31,7 @@ data BotException
   = NoParse ResponseBody
   | BadCallbackData CallbackData
   | ResponseException String
+  | BotLogicMisuse String
   deriving (Eq, Show)
 
 type ResponseBody = String

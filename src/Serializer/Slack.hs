@@ -4,6 +4,7 @@
 module Serializer.Slack where
 
 import Data.Aeson
+import Data.Maybe (maybeToList)
 import qualified Data.Text as T (Text(..))
 import Slack.Models
 
@@ -78,14 +79,18 @@ instance ToJSON SReaction where
 sResponseToMsgs :: SResponse -> [SlackMessage]
 sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
   where
-    f ms SMessage {..} =
-      case sMessageUser of
-        Nothing -> ms
-        _ -> Message sMessageTimestamp sMessageText : ms
+    f ms msg = maybeToList (sMessageToMsg msg) ++ ms
+
+sPostResponseToMsg :: SPostResponse -> Maybe SlackMessage
+sPostResponseToMsg SPostResponse {..} = sPostResponseMsg >>= sMessageToMsg
+
+sMessageToMsg :: SMessage -> Maybe SlackMessage
+sMessageToMsg SMessage {..} =
+  let msg = Message sMessageTimestamp sMessageText
+   in maybe Nothing (const (Just msg)) sMessageUser
 
 sPostResponseToReactions :: SPostResponse -> [SlackMessage]
-sPostResponseToReactions sPostResponse =
-  maybe [] (fmap Reaction) reactionNames
+sPostResponseToReactions sPostResponse = maybe [] (fmap Reaction) reactionNames
   where
     reactionNames =
       fmap sReactionName <$>

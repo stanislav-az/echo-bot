@@ -33,6 +33,7 @@ dependencies:
 - exceptions
 - unordered-containers
 - http-types
+- safe 
 
 library:
   source-dirs: src
