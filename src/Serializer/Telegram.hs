@@ -145,7 +145,7 @@ tResponseToMsgs tResponse = foldr go [] (tResponseResult tResponse)
   where
     go (TUpdate uid a b) ms = getMsg uid a ++ getCb uid b ++ ms
     getMsg uid (Just (TMessage _ (TChat chatID) (Just txt))) =
-      [Message uid chatID txt]
+      [Message uid chatID False txt]
     getMsg _ _ = []
     getCb uid (Just (TCallbackQuery queryID (Just msg) (Just btnPressed))) =
       [Callback uid queryID (tChatId $ tMessageChat msg) btnPressed]

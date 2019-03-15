@@ -24,9 +24,10 @@ data EchoBot m msg res rmap = EchoBot
   , routeMsg :: msg -> BotMessage
   , sendMsg :: msg -> m res
   , parseSendMsgResponse :: res -> m (Maybe msg)
-  , replaceMsgText :: T.Text -> msg -> m msg
-  , repeatMapTransformation :: Int -> msg -> rmap -> rmap
-  , getCurrentRepeatNumber :: Int -> rmap -> msg -> Int
+  , putHelpTextInMsg :: T.Text -> msg -> m msg
+  , putRepeatTextInMsg :: T.Text -> msg -> m msg
+  , repeatMapTransformation :: Int -> msg -> rmap -> m rmap
+  , getCurrentRepeatNumber :: Int -> rmap -> msg -> m Int
   , parseToRepeatNumber :: msg -> m (Maybe Int)
   , convertToTextualChat :: msg -> m T.Text
   , convertToTextualMsg :: msg -> m T.Text
@@ -73,14 +74,14 @@ botCycle bot = do
         ReactionMsg -> processReact msg
     processHelpMsg msg = do
       helpText <- helpMsg <$> getBotConst
-      hMsg <- replaceMsgText bot helpText msg
+      hMsg <- putHelpTextInMsg bot helpText msg
       sendMsg bot hMsg
       chat <- convertToTextualChat bot msg
       logChatMessage chat helpText
     processPlainMsg msg = do
       repeat <- defaultRepeatNumber <$> getBotConst
       repeatMap <- getRepeatMap
-      let currRepeat = getCurrentRepeatNumber bot repeat repeatMap msg
+      currRepeat <- getCurrentRepeatNumber bot repeat repeatMap msg
       replicateM_ currRepeat $ sendMsg bot msg
       chat <- convertToTextualChat bot msg
       text <- convertToTextualMsg bot msg
@@ -89,9 +90,9 @@ botCycle bot = do
       repeat <- defaultRepeatNumber <$> getBotConst
       repeatMap <- getRepeatMap
       repeatText <- repeatMsg <$> getBotConst
-      let currRepeat = getCurrentRepeatNumber bot repeat repeatMap msg
-          modRepeatText = repeatText <> textify currRepeat
-      rMsg <- replaceMsgText bot modRepeatText msg
+      currRepeat <- getCurrentRepeatNumber bot repeat repeatMap msg
+      let modRepeatText = repeatText <> textify currRepeat
+      rMsg <- putRepeatTextInMsg bot modRepeatText msg
       sendMsg bot rMsg >>= parseSendMsgResponse bot >>= putFutureMsg
       chat <- convertToTextualChat bot msg
       logChatMessage chat modRepeatText
@@ -99,6 +100,6 @@ botCycle bot = do
       mbRepeat <- parseToRepeatNumber bot react
       maybe (pure ()) (modifyAndLog react) mbRepeat
     modifyAndLog react repeat = do
-      modifyRepeatMap $ repeatMapTransformation bot repeat react
+      getRepeatMap >>= repeatMapTransformation bot repeat react >>= putRepeatMap
       chat <- convertToTextualChat bot react
       logChatRepeat chat $ textify repeat

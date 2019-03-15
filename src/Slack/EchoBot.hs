@@ -22,7 +22,7 @@ import qualified Data.Text as T (Text(..), pack)
 import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
 import qualified Network.HTTP.Simple as HTTP (getResponseBody)
-import qualified Safe as Safe (lastMay)
+import qualified Safe (lastMay)
 import Serializer.Slack
 import Slack.Models
 import Slack.Requests
@@ -38,7 +38,8 @@ slackBot =
     , routeMsg = sRouteMsg
     , sendMsg = sSendMsg
     , parseSendMsgResponse = sParseSendMsgResponse
-    , replaceMsgText = sReplaceMsgText
+    , putHelpTextInMsg = sReplaceMsgText
+    , putRepeatTextInMsg = sReplaceMsgText
     , repeatMapTransformation = sRepeatMapTransformation
     , getCurrentRepeatNumber = sGetCurrentRepeatNumber
     , parseToRepeatNumber = sParseToRepeatNumber
@@ -64,6 +65,8 @@ sAcquireMessages ::
      (MonadSlackConst m, MonadHTTP m, MonadThrow m)
   => Maybe SlackMessage
   -> m [SlackMessage]
+sAcquireMessages (Just Reaction {..}) =
+  throwBotLogicMisuse "This SlackMessage has no timestamp"
 sAcquireMessages mbMsg = do
   token <- sConstToken <$> getSlackConst
   channel <- sConstChannel <$> getSlackConst
@@ -91,6 +94,7 @@ sAcquireReactions (Just Message {..}) = do
   sPostResponse <-
     maybe (throwParseException unparsedReactions) pure parsedReactions
   pure $ sPostResponseToReactions sPostResponse
+sAcquireReactions _ = throwBotLogicMisuse "This SlackMessage has no timestamp"
 
 sRouteMsg :: SlackMessage -> BotMessage
 sRouteMsg Message {..} =
@@ -100,8 +104,11 @@ sRouteMsg Message {..} =
     _ -> PlainMsg
 sRouteMsg _ = ReactionMsg
 
-sGetCurrentRepeatNumber :: Int -> SlackRepeatMap -> SlackMessage -> Int
-sGetCurrentRepeatNumber r repeatMap _ = fromMaybe r repeatMap
+sGetCurrentRepeatNumber ::
+     MonadThrow m => Int -> Maybe Int -> SlackMessage -> m Int
+sGetCurrentRepeatNumber r repeatMap Message {..} = pure $ fromMaybe r repeatMap
+sGetCurrentRepeatNumber _ _ _ =
+  throwBotLogicMisuse "This SlackMessage has reactions"
 
 sReplaceMsgText :: MonadThrow m => T.Text -> SlackMessage -> m SlackMessage
 sReplaceMsgText text sm@Message {..} = pure sm {smText = text}
@@ -128,8 +135,11 @@ sSendMsg Message {..} = do
   pure $ HTTP.getResponseBody response
 sSendMsg _ = throwBotLogicMisuse "Could not send this SlackMessage"
 
-sRepeatMapTransformation :: Int -> SlackMessage -> SlackRepeatMap -> Maybe Int
-sRepeatMapTransformation repeat _ _ = Just repeat
+sRepeatMapTransformation ::
+     MonadThrow m => Int -> SlackMessage -> SlackRepeatMap -> m SlackRepeatMap
+sRepeatMapTransformation repeat Reaction {..} _ = pure $ Just repeat
+sRepeatMapTransformation _ _ _ =
+  throwBotLogicMisuse "This SlackMessage has text"
 
 sParseToRepeatNumber :: MonadThrow m => SlackMessage -> m (Maybe Int)
 sParseToRepeatNumber Reaction {..} = pure slackRepeat

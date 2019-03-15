@@ -9,7 +9,11 @@ module Telegram.EchoBot
 import Bot.BotClass
 import Bot.BotMonad (BotException(..))
 import Bot.EchoBot (BotMessage(..), EchoBot(..))
-import Bot.Exception (checkResponseStatus, throwParseException)
+import Bot.Exception
+  ( checkResponseStatus
+  , throwBotLogicMisuse
+  , throwParseException
+  )
 import Control.Monad (replicateM_, when)
 import Control.Monad.Catch
 import qualified Data.Aeson as JSON (decode)
@@ -19,6 +23,7 @@ import qualified Data.Text as T (Text(..), pack)
 import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
 import qualified Network.HTTP.Simple as HTTP (getResponseBody)
+import qualified Safe (lastMay)
 import Serializer.Telegram
 import Telegram.Models
 import Telegram.Requests
@@ -26,31 +31,38 @@ import qualified Text.Read as T (readMaybe)
 
 telegramBot ::
      (MonadHTTP m, MonadThrow m, MonadTelegramConst m)
-  => EchoBot m TelegramMessage TelegramReaction TelegramFlag TelegramAnticipation TelegramIterator TelegramRepeatMap
+  => EchoBot m TelegramMessage TelegramResponse TelegramRepeatMap
 telegramBot =
   EchoBot
     { getUpdates = tGetUpdates
+    , hasFutureMsg = const False
+    , findLastMsg = tFindLastMsg
     , routeMsg = tRouteMsg
-    , sendMsg = tSendMsg False
-    , sendRepeatMsg = tSendMsg True
-    , iteratorTransformation = tIteratorTransformation
+    , sendMsg = tSendMsg
+    , parseSendMsgResponse = const $ pure Nothing
+    , putHelpTextInMsg = tReplaceMsgText False
+    , putRepeatTextInMsg = tReplaceMsgText True
     , repeatMapTransformation = tRepeatMapTransformation
-    , parseReaction = tParseReaction
-    , parseAnticipation = tParseAnticipation
     , getCurrentRepeatNumber = tGetCurrentRepeatNumber
-    , replaceMsgText = tReplaceMsgText
-    , getTextualChat = tGetTextualChat
-    , getTextualMsg = tGetTextualMsg
+    , parseToRepeatNumber = tParseToRepeatNumber
+    , convertToTextualChat = tConvertToTextualChat
+    , convertToTextualMsg = tConvertToTextualMsg
     }
+
+tFindLastMsg :: [TelegramMessage] -> Maybe TelegramMessage
+tFindLastMsg = fmap modifyUpdateId . Safe.lastMay
+  where
+    modifyUpdateId tc@Callback {..} = tc {tcUpdateId = tcUpdateId + 1}
+    modifyUpdateId tm@Message {..} = tm {tmUpdateId = tmUpdateId + 1}
 
 tGetUpdates ::
      (MonadTelegramConst m, MonadHTTP m, MonadThrow m)
-  => Maybe TelegramFlag
-  -> Maybe Integer
-  -> m ([TelegramMessage], [TelegramReaction])
-tGetUpdates _ offset = do
+  => Maybe TelegramMessage
+  -> Maybe TelegramMessage
+  -> m [TelegramMessage]
+tGetUpdates lastMsg _ = do
   token <- tConstToken <$> getTelegramConst
-  let getUpdates = makeGetUpdates offset token
+  let getUpdates = makeGetUpdates token $ fmap getUpdateId lastMsg
   response <- http getUpdates
   checkResponseStatus response
   let unparsed = HTTP.getResponseBody response
@@ -58,70 +70,71 @@ tGetUpdates _ offset = do
   tResponse <- maybe (throwParseException unparsed) pure parsed
   pure $ tResponseToMsgs tResponse
 
-tIteratorTransformation ::
-     Either TelegramReaction TelegramMessage -> Maybe Integer -> Maybe Integer
-tIteratorTransformation rm tLastUpdateId = maybe ifNothing ifJust tLastUpdateId
-  where
-    uid = either trUpdateId tmUpdateId rm
-    ifNothing = Just $ uid + 1
-    ifJust offset
-      | uid + 1 > offset = ifNothing
-      | otherwise = tLastUpdateId
-
 tRepeatMapTransformation ::
-     Int -> TelegramReaction -> TelegramRepeatMap -> TelegramRepeatMap
-tRepeatMapTransformation repeat TelegramReaction {..} =
-  HM.insert trChatId repeat
+     MonadThrow m
+  => Int
+  -> TelegramMessage
+  -> TelegramRepeatMap
+  -> m TelegramRepeatMap
+tRepeatMapTransformation repeat Callback {..} rmap =
+  pure $ HM.insert tcChatId repeat rmap
+tRepeatMapTransformation _ _ _ =
+  throwBotLogicMisuse "This TelegramMessage has no callback data"
 
 tRouteMsg :: TelegramMessage -> BotMessage
-tRouteMsg TelegramMessage {..} =
+tRouteMsg Message {..} =
   case tmText of
     "/help" -> HelpMsg
     "/repeat" -> RepeatMsg
-    _ -> Msg
+    _ -> PlainMsg
+tRouteMsg _ = ReactionMsg
 
 tSendMsg ::
      (MonadTelegramConst m, MonadHTTP m, MonadThrow m)
-  => Bool
-  -> TelegramMessage
+  => TelegramMessage
   -> m ()
-tSendMsg hasKeyboard msg@TelegramMessage {..} = do
+tSendMsg msg@Message {..} = do
   token <- tConstToken <$> getTelegramConst
   let req =
-        if hasKeyboard
-          then makeCallbackQuery token msg
-          else makeSendMessage token msg
+        if tmHasKeyboard
+          then makeCallbackQuery token tmChatId tmText
+          else makeSendMessage token tmChatId tmText
   response <- http req
   checkResponseStatus response
+tSendMsg _ = throwBotLogicMisuse "Could not send this TelegramMessage"
 
-tParseReaction ::
+tParseToRepeatNumber ::
      (MonadThrow m, MonadTelegramConst m, MonadHTTP m)
-  => TelegramReaction
+  => TelegramMessage
   -> m (Maybe Int)
-tParseReaction tr@TelegramReaction {..} = do
+tParseToRepeatNumber Callback {..} = do
   let btn = T.readMaybe tcData :: Maybe Int
   when (isNothing btn) $ throwM $ BadCallbackData tcData
   token <- tConstToken <$> getTelegramConst
-  let req = makeAnswerCallbackQuery token tr
+  let req = makeAnswerCallbackQuery token tcId $ T.pack tcData
   response <- http req
   checkResponseStatus response
   pure btn
 
-tParseAnticipation :: Monad m => TelegramAnticipation -> m (Maybe TelegramFlag)
-tParseAnticipation _ = pure Nothing
+tGetCurrentRepeatNumber ::
+     MonadThrow m => Int -> TelegramRepeatMap -> TelegramMessage -> m Int
+tGetCurrentRepeatNumber r repeatMap Message {..} =
+  pure $ HM.lookupDefault r tmChatId repeatMap
+tGetCurrentRepeatNumber _ _ _ =
+  throwBotLogicMisuse "This TelegramMessage has callback data"
 
-tGetCurrentRepeatNumber :: Int -> TelegramRepeatMap -> TelegramMessage -> Int
-tGetCurrentRepeatNumber r repeatMap TelegramMessage {..} =
-  HM.lookupDefault r tmChatId repeatMap
+tReplaceMsgText ::
+     MonadThrow m => Bool -> T.Text -> TelegramMessage -> m TelegramMessage
+tReplaceMsgText hasKeyboard text tm@Message {..} =
+  pure tm {tmText = text, tmHasKeyboard = hasKeyboard}
+tReplaceMsgText _ _ _ =
+  throwBotLogicMisuse "This TelegramMessage has callback data"
 
-tReplaceMsgText :: T.Text -> TelegramMessage -> TelegramMessage
-tReplaceMsgText text tm = tm {tmText = text}
+tConvertToTextualChat :: Monad m => TelegramMessage -> m T.Text
+tConvertToTextualChat Message {..} = pure $ textify tmChatId
+tConvertToTextualChat Callback {..} = pure $ textify tcChatId
 
-tGetTextualChat ::
-     Monad m => Either TelegramReaction TelegramMessage -> m T.Text
-tGetTextualChat rm = pure $ textify chat
-  where
-    chat = either trChatId tmChatId rm
-
-tGetTextualMsg :: TelegramMessage -> T.Text
-tGetTextualMsg = tmText
+tConvertToTextualMsg :: MonadThrow m => TelegramMessage -> m T.Text
+tConvertToTextualMsg Message {..} = pure tmText
+tConvertToTextualMsg _ =
+  throwBotLogicMisuse "This TelegramMessage has callback data"

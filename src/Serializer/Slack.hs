@@ -82,7 +82,9 @@ sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
     f ms msg = maybeToList (sMessageToMsg msg) ++ ms
 
 sPostResponseToMsg :: SPostResponse -> Maybe SlackMessage
-sPostResponseToMsg SPostResponse {..} = sPostResponseMsg >>= sMessageToMsg
+sPostResponseToMsg SPostResponse {..} = composeMsg <$> sPostResponseMsg
+  where
+    composeMsg SMessage {..} = Message sMessageTimestamp sMessageText
 
 sMessageToMsg :: SMessage -> Maybe SlackMessage
 sMessageToMsg SMessage {..} =
