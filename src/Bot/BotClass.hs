@@ -55,7 +55,7 @@ data BotConst = BotConst
   } deriving (Eq, Show)
 
 class (Monad m) =>
-      HasBotConst m
+      MonadBotConst m
   where
   getBotConst :: m BotConst
 
@@ -65,7 +65,7 @@ data SlackConst = SlackConst
   } deriving (Eq, Show)
 
 class (Monad m) =>
-      HasSlackConst m
+      MonadSlackConst m
   where
   getSlackConst :: m SlackConst
 
@@ -74,28 +74,24 @@ data TelegramConst = TelegramConst
   } deriving (Eq, Show)
 
 class (Monad m) =>
-      HasTelegramConst m
+      MonadTelegramConst m
   where
   getTelegramConst :: m TelegramConst
 
 class (Monad m) =>
-      MonadFlagState m flag
+      MonadLastMsgState m msg
   where
-  getFlag :: m (Maybe flag)
-  putFlag :: Maybe flag -> m ()
-  modifyFlag :: (Maybe flag -> Maybe flag) -> m ()
-  modifyFlag f = getFlag >>= (putFlag . f)
+  getLastMsg :: m (Maybe msg)
+  putLastMsg :: Maybe msg -> m ()
 
 class (Monad m) =>
-      MonadIterState m iter
+      MonadFutureMsgState m msg
   where
-  getIterator :: m (Maybe iter)
-  putIterator :: Maybe iter -> m ()
-  modifyIterator :: (Maybe iter -> Maybe iter) -> m ()
-  modifyIterator f = getIterator >>= (putIterator . f)
+  getFutureMsg :: m (Maybe msg)
+  putFutureMsg :: Maybe msg -> m ()
 
 class (Monad m) =>
-      MonadRepeatState m rmap
+      MonadRepeatMapState m rmap
   where
   getRepeatMap :: m rmap
   putRepeatMap :: rmap -> m ()

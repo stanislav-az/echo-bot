@@ -66,19 +66,19 @@ instance Bot.MonadLogger (MockMonad e) where
 instance Bot.MonadHTTP (MockMonad e) where
   http req = route req $ routes req
 
-instance Bot.HasSlackConst (MockMonad Bot.SlackEnv) where
+instance Bot.MonadSlackConst (MockMonad Bot.SlackEnv) where
   getSlackConst = Bot.sSlackConst <$> gets mockBotEnv
 
-instance Bot.HasTelegramConst (MockMonad Bot.TelegramEnv) where
+instance Bot.MonadTelegramConst (MockMonad Bot.TelegramEnv) where
   getTelegramConst = Bot.tTelegramConst <$> gets mockBotEnv
 
-instance Bot.HasBotConst (MockMonad Bot.SlackEnv) where
+instance Bot.MonadBotConst (MockMonad Bot.SlackEnv) where
   getBotConst =
     let mapEnv f = f <$> gets mockBotEnv
      in Bot.BotConst <$> mapEnv Bot.sHelpMsg <*> mapEnv Bot.sRepeatMsg <*>
         mapEnv Bot.sDefaultRepeatNumber
 
-instance Bot.HasBotConst (MockMonad Bot.TelegramEnv) where
+instance Bot.MonadBotConst (MockMonad Bot.TelegramEnv) where
   getBotConst =
     let mapEnv f = f <$> gets mockBotEnv
      in Bot.BotConst <$> mapEnv Bot.tHelpMsg <*> mapEnv Bot.tRepeatMsg <*>
@@ -106,13 +106,13 @@ instance Bot.MonadIterState (MockMonad Bot.TelegramEnv) Bot.TelegramIterator whe
     modify $ \s@MockIO {..} ->
       s {mockBotEnv = mockBotEnv {Bot.tLastUpdateId = iter}}
 
-instance Bot.MonadRepeatState (MockMonad Bot.SlackEnv) Bot.SlackRepeatMap where
+instance Bot.MonadRepeatMapState (MockMonad Bot.SlackEnv) Bot.SlackRepeatMap where
   getRepeatMap = Bot.sRepeatMap <$> gets mockBotEnv
   putRepeatMap repeatMap =
     modify $ \s@MockIO {..} ->
       s {mockBotEnv = mockBotEnv {Bot.sRepeatMap = repeatMap}}
 
-instance Bot.MonadRepeatState (MockMonad Bot.TelegramEnv) Bot.TelegramRepeatMap where
+instance Bot.MonadRepeatMapState (MockMonad Bot.TelegramEnv) Bot.TelegramRepeatMap where
   getRepeatMap = Bot.tRepeatMap <$> gets mockBotEnv
   putRepeatMap repeatMap =
     modify $ \s@MockIO {..} ->

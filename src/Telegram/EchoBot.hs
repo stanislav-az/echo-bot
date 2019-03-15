@@ -25,7 +25,7 @@ import Telegram.Requests
 import qualified Text.Read as T (readMaybe)
 
 telegramBot ::
-     (MonadHTTP m, MonadThrow m, HasTelegramConst m)
+     (MonadHTTP m, MonadThrow m, MonadTelegramConst m)
   => EchoBot m TelegramMessage TelegramReaction TelegramFlag TelegramAnticipation TelegramIterator TelegramRepeatMap
 telegramBot =
   EchoBot
@@ -44,7 +44,7 @@ telegramBot =
     }
 
 tGetUpdates ::
-     (HasTelegramConst m, MonadHTTP m, MonadThrow m)
+     (MonadTelegramConst m, MonadHTTP m, MonadThrow m)
   => Maybe TelegramFlag
   -> Maybe Integer
   -> m ([TelegramMessage], [TelegramReaction])
@@ -81,7 +81,7 @@ tRouteMsg TelegramMessage {..} =
     _ -> Msg
 
 tSendMsg ::
-     (HasTelegramConst m, MonadHTTP m, MonadThrow m)
+     (MonadTelegramConst m, MonadHTTP m, MonadThrow m)
   => Bool
   -> TelegramMessage
   -> m ()
@@ -95,7 +95,7 @@ tSendMsg hasKeyboard msg@TelegramMessage {..} = do
   checkResponseStatus response
 
 tParseReaction ::
-     (MonadThrow m, HasTelegramConst m, MonadHTTP m)
+     (MonadThrow m, MonadTelegramConst m, MonadHTTP m)
   => TelegramReaction
   -> m (Maybe Int)
 tParseReaction tr@TelegramReaction {..} = do

@@ -23,7 +23,7 @@ import Slack.Models
 import Slack.Requests
 
 slackBot ::
-     (MonadHTTP m, MonadThrow m, HasSlackConst m)
+     (MonadHTTP m, MonadThrow m, MonadSlackConst m)
   => EchoBot m SlackMessage SlackReaction SlackFlag SlackAnticipation SlackIterator SlackRepeatMap
 slackBot =
   EchoBot
@@ -42,7 +42,7 @@ slackBot =
     }
 
 sGetUpdates ::
-     (HasSlackConst m, MonadHTTP m, MonadThrow m)
+     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
   => Maybe SlackFlag
   -> Maybe SlackIterator
   -> m ([SlackMessage], [SlackReaction])
@@ -50,7 +50,7 @@ sGetUpdates flag timestamp =
   (,) <$> sAcquireMessages timestamp <*> sAcquireReactions flag
 
 sAcquireMessages ::
-     (HasSlackConst m, MonadHTTP m, MonadThrow m)
+     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
   => Maybe SlackIterator
   -> m [SlackMessage]
 sAcquireMessages timestamp = do
@@ -65,7 +65,7 @@ sAcquireMessages timestamp = do
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions ::
-     (HasSlackConst m, MonadHTTP m, MonadThrow m)
+     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
   => Maybe SlackFlag
   -> m [SlackReaction]
 sAcquireReactions Nothing = pure []
@@ -95,23 +95,23 @@ sReplaceMsgText :: T.Text -> SlackMessage -> SlackMessage
 sReplaceMsgText text sm = sm {smText = text}
 
 sGetTextualChat ::
-     HasSlackConst m => Either SlackReaction SlackMessage -> m T.Text
+     MonadSlackConst m => Either SlackReaction SlackMessage -> m T.Text
 sGetTextualChat _ = T.pack . sConstChannel <$> getSlackConst
 
 sGetTextualMsg :: SlackMessage -> T.Text
 sGetTextualMsg = smText
 
-sSendMsg :: (HasSlackConst m, MonadHTTP m, MonadThrow m) => SlackMessage -> m ()
+sSendMsg :: (MonadSlackConst m, MonadHTTP m, MonadThrow m) => SlackMessage -> m ()
 sSendMsg msg = sSendMsgGetResBody msg >> pure ()
 
 sSendRepeatMsg ::
-     (HasSlackConst m, MonadHTTP m, MonadThrow m)
+     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
   => SlackMessage
   -> m SlackAnticipation
 sSendRepeatMsg = sSendMsgGetResBody
 
 sSendMsgGetResBody ::
-     (HasSlackConst m, MonadHTTP m, MonadThrow m)
+     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
   => SlackMessage
   -> m SlackAnticipation
 sSendMsgGetResBody msg@SlackMessage {..} = do

@@ -73,17 +73,17 @@ instance MonadDelay (BotMonad e) where
 instance MonadHTTP (BotMonad e) where
   http = liftIO . http
 
-instance HasSlackConst (BotMonad SlackEnv) where
+instance MonadSlackConst (BotMonad SlackEnv) where
   getSlackConst = gets sSlackConst
 
-instance HasTelegramConst (BotMonad TelegramEnv) where
+instance MonadTelegramConst (BotMonad TelegramEnv) where
   getTelegramConst = gets tTelegramConst
 
-instance HasBotConst (BotMonad SlackEnv) where
+instance MonadBotConst (BotMonad SlackEnv) where
   getBotConst =
     BotConst <$> gets sHelpMsg <*> gets sRepeatMsg <*> gets sDefaultRepeatNumber
 
-instance HasBotConst (BotMonad TelegramEnv) where
+instance MonadBotConst (BotMonad TelegramEnv) where
   getBotConst =
     BotConst <$> gets tHelpMsg <*> gets tRepeatMsg <*> gets tDefaultRepeatNumber
 
@@ -103,10 +103,10 @@ instance MonadIterState (BotMonad TelegramEnv) TelegramIterator where
   getIterator = gets tLastUpdateId
   putIterator uid = modify $ \s -> s {tLastUpdateId = uid}
 
-instance MonadRepeatState (BotMonad SlackEnv) SlackRepeatMap where
+instance MonadRepeatMapState (BotMonad SlackEnv) SlackRepeatMap where
   getRepeatMap = gets sRepeatMap
   putRepeatMap repeatMap = modify $ \s -> s {sRepeatMap = repeatMap}
 
-instance MonadRepeatState (BotMonad TelegramEnv) TelegramRepeatMap where
+instance MonadRepeatMapState (BotMonad TelegramEnv) TelegramRepeatMap where
   getRepeatMap = gets tRepeatMap
   putRepeatMap repeatMap = modify $ \s -> s {tRepeatMap = repeatMap}
