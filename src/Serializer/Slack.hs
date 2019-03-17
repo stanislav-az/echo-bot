@@ -81,14 +81,12 @@ sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
   where
     f ms msg = maybeToList (sMessageToMsg msg) ++ ms
 
-sPostResponseToMsg :: SPostResponse -> Maybe SlackMessage
-sPostResponseToMsg SPostResponse {..} = composeMsg <$> sPostResponseMsg
-  where
-    composeMsg SMessage {..} = Message sMessageTimestamp sMessageText
+sPostResponseToTimestamp :: SPostResponse -> Maybe String
+sPostResponseToTimestamp SPostResponse {..} = sMessageTimestamp <$> sPostResponseMsg
 
 sMessageToMsg :: SMessage -> Maybe SlackMessage
 sMessageToMsg SMessage {..} =
-  let msg = Message sMessageTimestamp sMessageText
+  let msg = Message sMessageTimestamp False sMessageText
    in maybe Nothing (const (Just msg)) sMessageUser
 
 sPostResponseToReactions :: SPostResponse -> [SlackMessage]

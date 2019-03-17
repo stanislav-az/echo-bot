@@ -77,6 +77,6 @@ makeSlackEnv = do
       { sBotConst = BotConst hMsg rMsg rNum
       , sSlackConst = SlackConst token channel
       , sLastMsg = Nothing
-      , sFutureMsg = Nothing
+      , sTimestamp = Nothing
       , sRepeatMap = Nothing
       }

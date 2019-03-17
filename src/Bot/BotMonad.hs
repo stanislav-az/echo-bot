@@ -23,7 +23,7 @@ data SlackEnv = SlackEnv
   { sBotConst :: BotConst
   , sSlackConst :: SlackConst
   , sLastMsg :: Maybe SlackMessage
-  , sFutureMsg :: Maybe SlackMessage
+  , sTimestamp :: Maybe String
   , sRepeatMap :: Maybe Int
   } deriving (Eq, Show)
 
@@ -90,13 +90,9 @@ instance MonadLastMsgState (BotMonad TelegramEnv) TelegramMessage where
   getLastMsg = gets tLastMsg
   putLastMsg lastMsg = modify $ \s -> s {tLastMsg = lastMsg}
 
-instance MonadFutureMsgState (BotMonad SlackEnv) SlackMessage where
-  getFutureMsg = gets sFutureMsg
-  putFutureMsg futureMsg = modify $ \s -> s {sFutureMsg = futureMsg}
-
-instance MonadFutureMsgState (BotMonad TelegramEnv) TelegramMessage where
-  getFutureMsg = pure Nothing
-  putFutureMsg _ = pure ()
+instance MonadTimestampState (BotMonad SlackEnv) where
+  getTimestamp = gets sTimestamp
+  putTimestamp futureMsg = modify $ \s -> s {sTimestamp = futureMsg}
 
 instance MonadRepeatMapState (BotMonad SlackEnv) SlackRepeatMap where
   getRepeatMap = gets sRepeatMap

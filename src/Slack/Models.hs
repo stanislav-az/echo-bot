@@ -7,11 +7,10 @@ import qualified Data.Text as T (Text(..))
 
 data SlackMessage
   = Message { smTimestamp :: String
+            , smIsRepeatMsg :: Bool
             , smText :: T.Text }
   | Reaction { srName :: String }
   deriving (Eq, Show)
-
-type SlackResponse = LB.ByteString
 
 type SlackRepeatMap = Maybe Int
 

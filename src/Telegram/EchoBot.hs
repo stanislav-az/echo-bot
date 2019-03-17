@@ -31,15 +31,13 @@ import qualified Text.Read as T (readMaybe)
 
 telegramBot ::
      (MonadHTTP m, MonadThrow m, MonadTelegramConst m)
-  => EchoBot m TelegramMessage TelegramResponse TelegramRepeatMap
+  => EchoBot m TelegramMessage TelegramRepeatMap
 telegramBot =
   EchoBot
     { getUpdates = tGetUpdates
-    , hasFutureMsg = const False
     , findLastMsg = tFindLastMsg
     , routeMsg = tRouteMsg
     , sendMsg = tSendMsg
-    , parseSendMsgResponse = const $ pure Nothing
     , putHelpTextInMsg = tReplaceMsgText False
     , putRepeatTextInMsg = tReplaceMsgText True
     , repeatMapTransformation = tRepeatMapTransformation
@@ -58,15 +56,14 @@ tFindLastMsg = fmap modifyUpdateId . Safe.lastMay
 tGetUpdates ::
      (MonadTelegramConst m, MonadHTTP m, MonadThrow m)
   => Maybe TelegramMessage
-  -> Maybe TelegramMessage
   -> m [TelegramMessage]
-tGetUpdates lastMsg _ = do
+tGetUpdates lastMsg = do
   token <- tConstToken <$> getTelegramConst
   let getUpdates = makeGetUpdates token $ fmap getUpdateId lastMsg
   response <- http getUpdates
   checkResponseStatus response
   let unparsed = HTTP.getResponseBody response
-      parsed = JSON.decode unparsed :: Maybe TResponse
+      parsed = JSON.decode unparsed
   tResponse <- maybe (throwParseException unparsed) pure parsed
   pure $ tResponseToMsgs tResponse
 

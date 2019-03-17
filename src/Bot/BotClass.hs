@@ -85,10 +85,10 @@ class (Monad m) =>
   putLastMsg :: Maybe msg -> m ()
 
 class (Monad m) =>
-      MonadFutureMsgState m msg
+      MonadTimestampState m
   where
-  getFutureMsg :: m (Maybe msg)
-  putFutureMsg :: Maybe msg -> m ()
+  getTimestamp :: m (Maybe String)
+  putTimestamp :: Maybe String -> m ()
 
 class (Monad m) =>
       MonadRepeatMapState m rmap

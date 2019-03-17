@@ -17,13 +17,11 @@ data BotMessage
   | ReactionMsg
   deriving (Eq, Show)
 
-data EchoBot m msg res rmap = EchoBot
-  { getUpdates :: Maybe msg -> Maybe msg -> m [msg]
-  , hasFutureMsg :: [msg] -> Bool
+data EchoBot m msg rmap = EchoBot
+  { getUpdates :: Maybe msg ->  m [msg]
   , findLastMsg :: [msg] -> Maybe msg
   , routeMsg :: msg -> BotMessage
-  , sendMsg :: msg -> m res
-  , parseSendMsgResponse :: res -> m (Maybe msg)
+  , sendMsg :: msg -> m ()
   , putHelpTextInMsg :: T.Text -> msg -> m msg
   , putRepeatTextInMsg :: T.Text -> msg -> m msg
   , repeatMapTransformation :: Int -> msg -> rmap -> m rmap
@@ -37,30 +35,26 @@ goEchoBot ::
      ( MonadDelay m
      , MonadBotConst m
      , MonadLastMsgState m msg
-     , MonadFutureMsgState m msg
      , MonadRepeatMapState m rmap
      , MonadLogger m
      )
-  => EchoBot m msg res rmap
+  => EchoBot m msg rmap
   -> m ()
 goEchoBot bot = forever $ botCycle bot
 
 botCycle ::
-     forall m msg res rmap.
+     forall m msg rmap.
      ( MonadDelay m
      , MonadBotConst m
      , MonadLastMsgState m msg
-     , MonadFutureMsgState m msg
      , MonadRepeatMapState m rmap
      , MonadLogger m
      )
-  => EchoBot m msg res rmap
+  => EchoBot m msg rmap
   -> m ()
 botCycle bot = do
   lastMsg <- getLastMsg
-  futureMsg <- getFutureMsg
-  ms <- getUpdates bot lastMsg futureMsg
-  when (hasFutureMsg bot ms) $ putFutureMsg (Nothing :: Maybe msg)
+  ms <- getUpdates bot lastMsg 
   let lastMsg' = findLastMsg bot ms <|> lastMsg
   putLastMsg lastMsg'
   forM_ ms processMsg
@@ -93,7 +87,7 @@ botCycle bot = do
       currRepeat <- getCurrentRepeatNumber bot repeat repeatMap msg
       let modRepeatText = repeatText <> textify currRepeat
       rMsg <- putRepeatTextInMsg bot modRepeatText msg
-      sendMsg bot rMsg >>= parseSendMsgResponse bot >>= putFutureMsg
+      sendMsg bot rMsg 
       chat <- convertToTextualChat bot msg
       logChatMessage chat modRepeatText
     processReact react = do

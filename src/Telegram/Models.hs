@@ -16,8 +16,6 @@ data TelegramMessage
              , tcData :: String }
   deriving (Eq, Show)
 
-type TelegramResponse = ()
-
 type TelegramRepeatMap = HM.HashMap Integer Int
 
 getUpdateId :: TelegramMessage -> Integer

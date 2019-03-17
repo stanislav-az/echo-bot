@@ -33,6 +33,6 @@ getSlackEnv =
         SlackConst
           {sConstToken = "slack_token", sConstChannel = "slack_channel"}
     , sLastMsg = Nothing
-    , sFutureMsg = Nothing
+    , sTimestamp = Nothing
     , sRepeatMap = Nothing
     }

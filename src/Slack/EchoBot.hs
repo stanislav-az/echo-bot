@@ -13,7 +13,7 @@ import Bot.Exception
   , throwBotLogicMisuse
   , throwParseException
   )
-import Control.Monad (replicateM_, when)
+import Control.Monad (replicateM_, unless, when)
 import Control.Monad.Catch
 import qualified Data.Aeson as JSON (decode)
 import qualified Data.ByteString.Lazy as LB (ByteString(..))
@@ -21,25 +21,23 @@ import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe)
 import qualified Data.Text as T (Text(..), pack)
 import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
-import qualified Network.HTTP.Simple as HTTP (getResponseBody)
+import qualified Network.HTTP.Simple as HTTP (Response(..), getResponseBody)
 import qualified Safe (lastMay)
 import Serializer.Slack
 import Slack.Models
 import Slack.Requests
 
 slackBot ::
-     (MonadHTTP m, MonadThrow m, MonadSlackConst m)
-  => EchoBot m SlackMessage SlackResponse SlackRepeatMap
+     (MonadHTTP m, MonadThrow m, MonadSlackConst m, MonadTimestampState m)
+  => EchoBot m SlackMessage SlackRepeatMap
 slackBot =
   EchoBot
     { getUpdates = sGetUpdates
-    , hasFutureMsg = sHasFutureMsg
     , findLastMsg = sFindLastMsg
     , routeMsg = sRouteMsg
     , sendMsg = sSendMsg
-    , parseSendMsgResponse = sParseSendMsgResponse
-    , putHelpTextInMsg = sReplaceMsgText
-    , putRepeatTextInMsg = sReplaceMsgText
+    , putHelpTextInMsg = sPutHelpTextInMsg
+    , putRepeatTextInMsg = sPutRepeatTextInMsg
     , repeatMapTransformation = sRepeatMapTransformation
     , getCurrentRepeatNumber = sGetCurrentRepeatNumber
     , parseToRepeatNumber = sParseToRepeatNumber
@@ -47,19 +45,14 @@ slackBot =
     , convertToTextualMsg = sConvertToTextualMsg
     }
 
-sHasFutureMsg :: [SlackMessage] -> Bool
-sHasFutureMsg = any sIsReaction
-
 sFindLastMsg :: [SlackMessage] -> Maybe SlackMessage
 sFindLastMsg = Safe.lastMay . filter sIsMessage
 
 sGetUpdates ::
-     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
+     (MonadSlackConst m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
   => Maybe SlackMessage
-  -> Maybe SlackMessage
   -> m [SlackMessage]
-sGetUpdates lastMsg futureMsg =
-  (++) <$> sAcquireMessages lastMsg <*> sAcquireReactions futureMsg
+sGetUpdates lastMsg = (++) <$> sAcquireMessages lastMsg <*> sAcquireReactions
 
 sAcquireMessages ::
      (MonadSlackConst m, MonadHTTP m, MonadThrow m)
@@ -79,22 +72,23 @@ sAcquireMessages mbMsg = do
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions ::
-     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
-  => Maybe SlackMessage
-  -> m [SlackMessage]
-sAcquireReactions Nothing = pure []
-sAcquireReactions (Just Message {..}) = do
-  token <- sConstToken <$> getSlackConst
-  channel <- sConstChannel <$> getSlackConst
-  let getReactions = makeGetReactions token channel smTimestamp
-  responseReactions <- http getReactions
-  checkResponseStatus responseReactions
-  let unparsedReactions = HTTP.getResponseBody responseReactions
-      parsedReactions = JSON.decode unparsedReactions
-  sPostResponse <-
-    maybe (throwParseException unparsedReactions) pure parsedReactions
-  pure $ sPostResponseToReactions sPostResponse
-sAcquireReactions _ = throwBotLogicMisuse "This SlackMessage has no timestamp"
+     (MonadSlackConst m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
+  => m [SlackMessage]
+sAcquireReactions = getTimestamp >>= maybe (pure []) acquire
+  where
+    acquire timestamp = do
+      token <- sConstToken <$> getSlackConst
+      channel <- sConstChannel <$> getSlackConst
+      let getReactions = makeGetReactions token channel timestamp
+      responseReactions <- http getReactions
+      checkResponseStatus responseReactions
+      let unparsedReactions = HTTP.getResponseBody responseReactions
+          parsedReactions = JSON.decode unparsedReactions
+      sPostResponse <-
+        maybe (throwParseException unparsedReactions) pure parsedReactions
+      let rs = sPostResponseToReactions sPostResponse
+      unless (null rs) $ putTimestamp Nothing
+      pure rs
 
 sRouteMsg :: SlackMessage -> BotMessage
 sRouteMsg Message {..} =
@@ -110,9 +104,14 @@ sGetCurrentRepeatNumber r repeatMap Message {..} = pure $ fromMaybe r repeatMap
 sGetCurrentRepeatNumber _ _ _ =
   throwBotLogicMisuse "This SlackMessage has reactions"
 
-sReplaceMsgText :: MonadThrow m => T.Text -> SlackMessage -> m SlackMessage
-sReplaceMsgText text sm@Message {..} = pure sm {smText = text}
-sReplaceMsgText _ _ = throwBotLogicMisuse "This SlackMessage has no text"
+sPutHelpTextInMsg :: MonadThrow m => T.Text -> SlackMessage -> m SlackMessage
+sPutHelpTextInMsg text sm@Message {..} = pure sm {smText = text}
+sPutHelpTextInMsg _ _ = throwBotLogicMisuse "This SlackMessage has no text"
+
+sPutRepeatTextInMsg :: MonadThrow m => T.Text -> SlackMessage -> m SlackMessage
+sPutRepeatTextInMsg text sm@Message {..} =
+  pure sm {smText = text, smIsRepeatMsg = True}
+sPutRepeatTextInMsg _ _ = throwBotLogicMisuse "This SlackMessage has no text"
 
 sConvertToTextualChat :: MonadSlackConst m => SlackMessage -> m T.Text
 sConvertToTextualChat _ = T.pack . sConstChannel <$> getSlackConst
@@ -122,9 +121,9 @@ sConvertToTextualMsg Message {..} = pure smText
 sConvertToTextualMsg _ = throwBotLogicMisuse "This SlackMessage has no text"
 
 sSendMsg ::
-     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
+     (MonadSlackConst m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
   => SlackMessage
-  -> m SlackResponse
+  -> m ()
 sSendMsg Message {..} = do
   token <- sConstToken <$> getSlackConst
   channel <- sConstChannel <$> getSlackConst
@@ -132,7 +131,7 @@ sSendMsg Message {..} = do
   response <- http postMessage
   checkResponseStatus response
   let chat = T.pack channel
-  pure $ HTTP.getResponseBody response
+  when smIsRepeatMsg $ sParseSendMsgResponse response
 sSendMsg _ = throwBotLogicMisuse "Could not send this SlackMessage"
 
 sRepeatMapTransformation ::
@@ -154,9 +153,13 @@ sParseToRepeatNumber Reaction {..} = pure slackRepeat
         _ -> Nothing
 sParseToRepeatNumber _ = throwBotLogicMisuse "Could not parse this SlackMessage"
 
-sParseSendMsgResponse :: MonadThrow m => SlackResponse -> m (Maybe SlackMessage)
-sParseSendMsgResponse msgResponseBody = do
-  let parsed = JSON.decode msgResponseBody
-      msg = parsed >>= sPostResponseToMsg
-  when (isNothing msg) $ throwParseException msgResponseBody
-  pure msg
+sParseSendMsgResponse ::
+     (MonadThrow m, MonadTimestampState m)
+  => HTTP.Response LB.ByteString
+  -> m ()
+sParseSendMsgResponse response = do
+  let msgResponseBody = HTTP.getResponseBody response
+      parsed = JSON.decode msgResponseBody
+      timestamp = parsed >>= sPostResponseToTimestamp
+  when (isNothing timestamp) $ throwParseException msgResponseBody
+  putTimestamp timestamp
