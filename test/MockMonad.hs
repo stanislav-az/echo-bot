@@ -95,13 +95,13 @@ instance Bot.MonadTimestampState (MockMonad Bot.SlackEnv) where
   putTimestamp ts =
     modify $ \s@MockIO {..} -> s {mockBotEnv = mockBotEnv {Bot.sTimestamp = ts}}
 
-instance Bot.MonadRepeatMapState (MockMonad Bot.SlackEnv) Bot.SlackRepeatMap where
+instance Bot.MonadRepeatMapState (MockMonad Bot.SlackEnv) where
   getRepeatMap = Bot.sRepeatMap <$> gets mockBotEnv
   putRepeatMap repeatMap =
     modify $ \s@MockIO {..} ->
       s {mockBotEnv = mockBotEnv {Bot.sRepeatMap = repeatMap}}
 
-instance Bot.MonadRepeatMapState (MockMonad Bot.TelegramEnv) Bot.TelegramRepeatMap where
+instance Bot.MonadRepeatMapState (MockMonad Bot.TelegramEnv) where
   getRepeatMap = Bot.tRepeatMap <$> gets mockBotEnv
   putRepeatMap repeatMap =
     modify $ \s@MockIO {..} ->

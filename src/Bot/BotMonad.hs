@@ -16,7 +16,7 @@ data TelegramEnv = TelegramEnv
   { tBotConst :: BotConst
   , tTelegramConst :: TelegramConst
   , tLastMsg :: Maybe TelegramMessage
-  , tRepeatMap :: HM.HashMap Integer Int
+  , tRepeatMap :: HM.HashMap T.Text Int
   } deriving (Eq, Show)
 
 data SlackEnv = SlackEnv
@@ -24,7 +24,7 @@ data SlackEnv = SlackEnv
   , sSlackConst :: SlackConst
   , sLastMsg :: Maybe SlackMessage
   , sTimestamp :: Maybe String
-  , sRepeatMap :: Maybe Int
+  , sRepeatMap :: HM.HashMap T.Text Int
   } deriving (Eq, Show)
 
 data BotException
@@ -94,10 +94,10 @@ instance MonadTimestampState (BotMonad SlackEnv) where
   getTimestamp = gets sTimestamp
   putTimestamp futureMsg = modify $ \s -> s {sTimestamp = futureMsg}
 
-instance MonadRepeatMapState (BotMonad SlackEnv) SlackRepeatMap where
+instance MonadRepeatMapState (BotMonad SlackEnv)  where
   getRepeatMap = gets sRepeatMap
   putRepeatMap repeatMap = modify $ \s -> s {sRepeatMap = repeatMap}
 
-instance MonadRepeatMapState (BotMonad TelegramEnv) TelegramRepeatMap where
+instance MonadRepeatMapState (BotMonad TelegramEnv)  where
   getRepeatMap = gets tRepeatMap
   putRepeatMap repeatMap = modify $ \s -> s {tRepeatMap = repeatMap}

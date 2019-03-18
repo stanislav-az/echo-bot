@@ -34,5 +34,5 @@ getSlackEnv =
           {sConstToken = "slack_token", sConstChannel = "slack_channel"}
     , sLastMsg = Nothing
     , sTimestamp = Nothing
-    , sRepeatMap = Nothing
+    , sRepeatMap = HM.empty
     }

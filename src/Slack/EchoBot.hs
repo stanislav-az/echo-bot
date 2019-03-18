@@ -29,7 +29,7 @@ import Slack.Requests
 
 slackBot ::
      (MonadHTTP m, MonadThrow m, MonadSlackConst m, MonadTimestampState m)
-  => EchoBot m SlackMessage SlackRepeatMap
+  => EchoBot m SlackMessage
 slackBot =
   EchoBot
     { getUpdates = sGetUpdates
@@ -38,8 +38,6 @@ slackBot =
     , sendMsg = sSendMsg
     , putHelpTextInMsg = sPutHelpTextInMsg
     , putRepeatTextInMsg = sPutRepeatTextInMsg
-    , repeatMapTransformation = sRepeatMapTransformation
-    , getCurrentRepeatNumber = sGetCurrentRepeatNumber
     , parseToRepeatNumber = sParseToRepeatNumber
     , convertToTextualChat = sConvertToTextualChat
     , convertToTextualMsg = sConvertToTextualMsg
@@ -98,12 +96,6 @@ sRouteMsg Message {..} =
     _ -> PlainMsg
 sRouteMsg _ = ReactionMsg
 
-sGetCurrentRepeatNumber ::
-     MonadThrow m => Int -> Maybe Int -> SlackMessage -> m Int
-sGetCurrentRepeatNumber r repeatMap Message {..} = pure $ fromMaybe r repeatMap
-sGetCurrentRepeatNumber _ _ _ =
-  throwBotLogicMisuse "This SlackMessage has reactions"
-
 sPutHelpTextInMsg :: MonadThrow m => T.Text -> SlackMessage -> m SlackMessage
 sPutHelpTextInMsg text sm@Message {..} = pure sm {smText = text}
 sPutHelpTextInMsg _ _ = throwBotLogicMisuse "This SlackMessage has no text"
@@ -133,12 +125,6 @@ sSendMsg Message {..} = do
   let chat = T.pack channel
   when smIsRepeatMsg $ sParseSendMsgResponse response
 sSendMsg _ = throwBotLogicMisuse "Could not send this SlackMessage"
-
-sRepeatMapTransformation ::
-     MonadThrow m => Int -> SlackMessage -> SlackRepeatMap -> m SlackRepeatMap
-sRepeatMapTransformation repeat Reaction {..} _ = pure $ Just repeat
-sRepeatMapTransformation _ _ _ =
-  throwBotLogicMisuse "This SlackMessage has text"
 
 sParseToRepeatNumber :: MonadThrow m => SlackMessage -> m (Maybe Int)
 sParseToRepeatNumber Reaction {..} = pure slackRepeat

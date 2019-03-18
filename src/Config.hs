@@ -78,5 +78,5 @@ makeSlackEnv = do
       , sSlackConst = SlackConst token channel
       , sLastMsg = Nothing
       , sTimestamp = Nothing
-      , sRepeatMap = Nothing
+      , sRepeatMap = HM.empty
       }

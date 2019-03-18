@@ -31,7 +31,7 @@ import qualified Text.Read as T (readMaybe)
 
 telegramBot ::
      (MonadHTTP m, MonadThrow m, MonadTelegramConst m)
-  => EchoBot m TelegramMessage TelegramRepeatMap
+  => EchoBot m TelegramMessage 
 telegramBot =
   EchoBot
     { getUpdates = tGetUpdates
@@ -40,8 +40,6 @@ telegramBot =
     , sendMsg = tSendMsg
     , putHelpTextInMsg = tReplaceMsgText False
     , putRepeatTextInMsg = tReplaceMsgText True
-    , repeatMapTransformation = tRepeatMapTransformation
-    , getCurrentRepeatNumber = tGetCurrentRepeatNumber
     , parseToRepeatNumber = tParseToRepeatNumber
     , convertToTextualChat = tConvertToTextualChat
     , convertToTextualMsg = tConvertToTextualMsg
@@ -66,17 +64,6 @@ tGetUpdates lastMsg = do
       parsed = JSON.decode unparsed
   tResponse <- maybe (throwParseException unparsed) pure parsed
   pure $ tResponseToMsgs tResponse
-
-tRepeatMapTransformation ::
-     MonadThrow m
-  => Int
-  -> TelegramMessage
-  -> TelegramRepeatMap
-  -> m TelegramRepeatMap
-tRepeatMapTransformation repeat Callback {..} rmap =
-  pure $ HM.insert tcChatId repeat rmap
-tRepeatMapTransformation _ _ _ =
-  throwBotLogicMisuse "This TelegramMessage has no callback data"
 
 tRouteMsg :: TelegramMessage -> BotMessage
 tRouteMsg Message {..} =
@@ -112,13 +99,6 @@ tParseToRepeatNumber Callback {..} = do
   response <- http req
   checkResponseStatus response
   pure btn
-
-tGetCurrentRepeatNumber ::
-     MonadThrow m => Int -> TelegramRepeatMap -> TelegramMessage -> m Int
-tGetCurrentRepeatNumber r repeatMap Message {..} =
-  pure $ HM.lookupDefault r tmChatId repeatMap
-tGetCurrentRepeatNumber _ _ _ =
-  throwBotLogicMisuse "This TelegramMessage has callback data"
 
 tReplaceMsgText ::
      MonadThrow m => Bool -> T.Text -> TelegramMessage -> m TelegramMessage

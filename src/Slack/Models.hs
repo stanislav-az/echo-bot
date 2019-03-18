@@ -12,8 +12,6 @@ data SlackMessage
   | Reaction { srName :: String }
   deriving (Eq, Show)
 
-type SlackRepeatMap = Maybe Int
-
 sIsMessage :: SlackMessage -> Bool
 sIsMessage Message {..} = True
 sIsMessage _ = False
