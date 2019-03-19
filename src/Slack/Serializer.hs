@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Serializer.Slack where
+module Slack.Serializer where
 
 import Data.Aeson
 import Data.Maybe (maybeToList)
@@ -82,7 +82,8 @@ sResponseToMsgs sResponse = maybe [] (foldl f []) (sResponseMsgs sResponse)
     f ms msg = maybeToList (sMessageToMsg msg) ++ ms
 
 sPostResponseToTimestamp :: SPostResponse -> Maybe String
-sPostResponseToTimestamp SPostResponse {..} = sMessageTimestamp <$> sPostResponseMsg
+sPostResponseToTimestamp SPostResponse {..} =
+  sMessageTimestamp <$> sPostResponseMsg
 
 sMessageToMsg :: SMessage -> Maybe SlackMessage
 sMessageToMsg SMessage {..} =

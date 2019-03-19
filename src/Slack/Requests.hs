@@ -14,7 +14,7 @@ import qualified Network.HTTP.Simple as HTTP
   , setRequestQueryString
   )
 import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
-import Serializer.Slack (constructSPostMessage)
+import Slack.Serializer (constructSPostMessage)
 import Slack.Models (SlackMessage(..))
 
 makeConHistory :: String -> String -> Maybe String -> HTTP.Request

@@ -59,36 +59,11 @@ class (Monad m) =>
   where
   getBotConst :: m BotConst
 
-data SlackConst = SlackConst
-  { sConstToken :: String
-  , sConstChannel :: String
-  } deriving (Eq, Show)
-
-class (Monad m) =>
-      MonadSlackConst m
-  where
-  getSlackConst :: m SlackConst
-
-data TelegramConst = TelegramConst
-  { tConstToken :: String
-  } deriving (Eq, Show)
-
-class (Monad m) =>
-      MonadTelegramConst m
-  where
-  getTelegramConst :: m TelegramConst
-
 class (Monad m) =>
       MonadLastMsgState m msg
   where
   getLastMsg :: m (Maybe msg)
   putLastMsg :: Maybe msg -> m ()
-
-class (Monad m) =>
-      MonadTimestampState m
-  where
-  getTimestamp :: m (Maybe String)
-  putTimestamp :: Maybe String -> m ()
 
 class (Monad m) =>
       MonadRepeatMapState m

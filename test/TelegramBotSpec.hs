@@ -10,7 +10,7 @@ import qualified Data.Text as T (Text(..))
 import MockMonad (MockIO(..), runTestTelegram, testTelegram)
 import MockResponses
 import RequestBody (getReqBodyLBS)
-import Serializer.Telegram
+import Telegram.Serializer
 import Telegram.Models
 import Test.Hspec (Spec(..), describe, it, shouldBe, shouldThrow)
 

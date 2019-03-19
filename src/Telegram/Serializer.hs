@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Serializer.Telegram where
+module Telegram.Serializer where
 
 import Data.Aeson
 import qualified Data.Text as T (Text(..), pack)

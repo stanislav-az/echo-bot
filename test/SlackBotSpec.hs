@@ -9,7 +9,7 @@ import qualified Data.Text as T (Text(..))
 import MockMonad (MockIO(..), runTestSlack, testSlack)
 import MockResponses
 import RequestBody (getReqBodyLBS)
-import Serializer.Slack
+import Slack.Serializer
 import Slack.Models
 import Test.Hspec (Spec(..), describe, it, shouldBe)
 

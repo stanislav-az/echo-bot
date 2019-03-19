@@ -12,7 +12,7 @@ import qualified Network.HTTP.Simple as HTTP
   , setRequestQueryString
   )
 import qualified Network.HTTP.Types.URI as Q (simpleQueryToQuery)
-import Serializer.Telegram
+import Telegram.Serializer
   ( constructTCallbackAnswer
   , constructTPostMessage
   , constructTPostRepeatMessage

@@ -17,8 +17,10 @@ import qualified Data.Text as T (Text(..))
 import MockConfig (getSlackEnv, getTelegramEnv)
 import MockResponses
 import qualified Network.HTTP.Conduit as HTTP (Request(..), path)
+import qualified Slack.BotClass as Bot
 import qualified Slack.EchoBot as Bot
 import qualified Slack.Models as Bot
+import qualified Telegram.BotClass as Bot
 import qualified Telegram.EchoBot as Bot
 import qualified Telegram.Models as Bot
 

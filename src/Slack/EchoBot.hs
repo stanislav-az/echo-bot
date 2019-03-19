@@ -23,9 +23,10 @@ import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
 import qualified Network.HTTP.Simple as HTTP (Response(..), getResponseBody)
 import qualified Safe (lastMay)
-import Serializer.Slack
+import Slack.BotClass
 import Slack.Models
 import Slack.Requests
+import Slack.Serializer
 
 slackBot ::
      (MonadHTTP m, MonadThrow m, MonadSlackConst m, MonadTimestampState m)

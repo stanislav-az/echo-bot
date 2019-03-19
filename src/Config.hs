@@ -2,7 +2,7 @@
 
 module Config where
 
-import Bot.BotClass (BotConst(..), SlackConst(..), TelegramConst(..))
+import Bot.BotClass (BotConst(..))
 import Bot.BotMonad (SlackEnv(..), TelegramEnv(..))
 import qualified Control.Logger.Simple as L (LogConfig(..))
 import qualified Data.Configurator as C
@@ -20,8 +20,10 @@ import qualified Data.Configurator.Types as C
   )
 import qualified Data.HashMap.Strict as HM (empty)
 import qualified Data.Text as T (Text(..), init, replace)
+import Slack.BotClass (SlackConst(..))
 import qualified System.Directory as D (createDirectoryIfMissing)
 import qualified System.FilePath.Posix as D (takeDirectory)
+import Telegram.BotClass (TelegramConst(..))
 
 data Bot
   = Telegram

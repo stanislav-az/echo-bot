@@ -24,14 +24,15 @@ import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
 import qualified Network.HTTP.Simple as HTTP (getResponseBody)
 import qualified Safe (lastMay)
-import Serializer.Telegram
+import Telegram.BotClass
 import Telegram.Models
 import Telegram.Requests
+import Telegram.Serializer
 import qualified Text.Read as T (readMaybe)
 
 telegramBot ::
      (MonadHTTP m, MonadThrow m, MonadTelegramConst m)
-  => EchoBot m TelegramMessage 
+  => EchoBot m TelegramMessage
 telegramBot =
   EchoBot
     { getUpdates = tGetUpdates
