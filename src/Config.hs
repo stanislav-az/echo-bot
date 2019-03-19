@@ -19,6 +19,7 @@ import qualified Data.Configurator.Types as C
   , Worth(..)
   )
 import qualified Data.HashMap.Strict as HM (empty)
+import qualified Data.Text as T (Text(..), init, replace)
 import qualified System.Directory as D (createDirectoryIfMissing)
 import qualified System.FilePath.Posix as D (takeDirectory)
 
@@ -53,9 +54,9 @@ makeTelegramEnv :: IO TelegramEnv
 makeTelegramEnv = do
   conf <- loadConfig
   token <- getByName conf "telegram.token"
-  hMsg <- getByName conf "telegram.help_msg"
-  rMsg <- getByName conf "telegram.repeat_msg"
-  rNum <- getByName conf "telegram.repeat_number"
+  hMsg <- getTelegramHelpMsg conf
+  rMsg <- getRepeatMsg conf
+  rNum <- getByName conf "repeat_number"
   pure $
     TelegramEnv
       { tBotConst = BotConst hMsg rMsg rNum
@@ -69,9 +70,9 @@ makeSlackEnv = do
   conf <- loadConfig
   token <- getByName conf "slack.token"
   channel <- getByName conf "slack.channel"
-  hMsg <- getByName conf "slack.help_msg"
-  rMsg <- getByName conf "slack.repeat_msg"
-  rNum <- getByName conf "slack.repeat_number"
+  hMsg <- getSlackHelpMsg conf
+  rMsg <- getRepeatMsg conf
+  rNum <- getByName conf "repeat_number"
   pure $
     SlackEnv
       { sBotConst = BotConst hMsg rMsg rNum
@@ -80,3 +81,16 @@ makeSlackEnv = do
       , sTimestamp = Nothing
       , sRepeatMap = HM.empty
       }
+
+getSlackHelpMsg :: C.Config -> IO T.Text
+getSlackHelpMsg conf =
+  T.replace "*" <$> getByName conf "slack.repeat_command" <*>
+  getByName conf "help_msg"
+
+getTelegramHelpMsg :: C.Config -> IO T.Text
+getTelegramHelpMsg conf =
+  T.replace "*" <$> getByName conf "telegram.repeat_command" <*>
+  getByName conf "help_msg"
+
+getRepeatMsg :: C.Config -> IO T.Text
+getRepeatMsg conf = T.init <$> getByName conf "repeat_msg"
