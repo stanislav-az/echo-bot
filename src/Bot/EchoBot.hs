@@ -1,9 +1,12 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Bot.EchoBot where
 
 import Bot.BotClass
 import Control.Applicative ((<|>))
 import Control.Monad
 import Data.Maybe
+import Data.Proxy
 import qualified Data.Text as T (Text(..))
 import Ext.Data.Text (textify)
 import Logging (logChatMessage, logChatRepeat)
@@ -15,7 +18,7 @@ data BotMessage
   | ReactionMsg
   deriving (Eq, Show)
 
-data EchoBot m msg = EchoBot
+data EchoBot m msg map = EchoBot
   { getUpdates :: Maybe msg -> m [msg]
   , findLastMsg :: [msg] -> Maybe msg
   , routeMsg :: msg -> BotMessage
@@ -31,21 +34,22 @@ goEchoBot ::
      ( MonadDelay m
      , MonadBotStaticOptions m
      , MonadLastMsgState m msg
-     , MonadRepeatMapState m
+     , MonadRepeatMapState m map
      , MonadLogger m
      )
-  => EchoBot m msg
+  => EchoBot m msg (map T.Text Int)
   -> m ()
 goEchoBot bot = forever $ botCycle bot
 
 botCycle ::
+     forall m msg map.
      ( MonadDelay m
      , MonadBotStaticOptions m
      , MonadLastMsgState m msg
-     , MonadRepeatMapState m
+     , MonadRepeatMapState m map
      , MonadLogger m
      )
-  => EchoBot m msg
+  => EchoBot m msg (map T.Text Int)
   -> m ()
 botCycle bot = do
   lastMsg <- getLastMsg
@@ -70,7 +74,7 @@ botCycle bot = do
     processPlainMsg msg = do
       repeat <- defaultRepeatNumber <$> getBotStaticOptions
       chat <- convertToTextualChat bot msg
-      currRepeat <- lookupRepeatDefault repeat chat
+      currRepeat <- lookupRepeatDefault (Proxy :: Proxy map) repeat chat
       replicateM_ currRepeat $ sendMsg bot msg
       text <- convertToTextualMsg bot msg
       logChatMessage chat text
@@ -78,7 +82,7 @@ botCycle bot = do
       repeat <- defaultRepeatNumber <$> getBotStaticOptions
       repeatText <- repeatMsg <$> getBotStaticOptions
       chat <- convertToTextualChat bot msg
-      currRepeat <- lookupRepeatDefault repeat chat
+      currRepeat <- lookupRepeatDefault (Proxy :: Proxy map) repeat chat
       let modRepeatText = repeatText <> textify currRepeat
       rMsg <- putRepeatTextInMsg bot modRepeatText msg
       sendMsg bot rMsg
@@ -88,5 +92,5 @@ botCycle bot = do
       maybe (pure ()) (modifyAndLog react) mbRepeat
     modifyAndLog react repeat = do
       chat <- convertToTextualChat bot react
-      insertRepeat chat repeat
+      insertRepeat (Proxy :: Proxy map) chat repeat
       logChatRepeat chat $ textify repeat

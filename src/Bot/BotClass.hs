@@ -10,7 +10,7 @@ import qualified Control.Logger.Simple as L
   , logWarn
   )
 import qualified Data.ByteString.Lazy as LB (ByteString(..))
-import qualified Data.HashMap.Strict as HM (HashMap(..), insert, lookupDefault)
+import Data.Proxy
 import qualified Data.Text as T (Text(..))
 import qualified Network.HTTP.Simple as HTTP
   ( Request(..)
@@ -66,13 +66,11 @@ class (Monad m) =>
   putLastMsg :: Maybe msg -> m ()
 
 class (Monad m) =>
-      MonadRepeatMapState m
+      MonadRepeatMapState m map
   where
-  getRepeatMap :: m (HM.HashMap T.Text Int)
-  putRepeatMap :: HM.HashMap T.Text Int -> m ()
-  modifyRepeatMap :: (HM.HashMap T.Text Int -> HM.HashMap T.Text Int) -> m ()
+  getRepeatMap :: m (map T.Text Int)
+  putRepeatMap :: map T.Text Int -> m ()
+  modifyRepeatMap :: (map T.Text Int -> map T.Text Int) -> m ()
   modifyRepeatMap f = getRepeatMap >>= (putRepeatMap . f)
-  lookupRepeatDefault :: Int -> T.Text -> m Int
-  lookupRepeatDefault v k = HM.lookupDefault v k <$> getRepeatMap
-  insertRepeat :: T.Text -> Int -> m ()
-  insertRepeat k v = modifyRepeatMap $ HM.insert k v
+  lookupRepeatDefault :: Proxy map -> Int -> T.Text -> m Int
+  insertRepeat :: Proxy map -> T.Text -> Int -> m ()

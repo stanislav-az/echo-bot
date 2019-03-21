@@ -18,6 +18,7 @@ import Control.Monad (replicateM_, when)
 import Control.Monad.Catch
 import qualified Data.Aeson as JSON (decode)
 import qualified Data.HashMap.Strict as HM (insert, lookupDefault)
+import qualified Data.HashMap.Strict as HM (HashMap(..))
 import Data.Maybe (fromJust, isNothing)
 import qualified Data.Text as T (Text(..), pack)
 import Ext.Data.Text (textify)
@@ -32,7 +33,7 @@ import qualified Text.Read as T (readMaybe)
 
 telegramBot ::
      (MonadHTTP m, MonadThrow m, MonadTelegramStaticOptions m)
-  => EchoBot m TelegramMessage
+  => EchoBot m TelegramMessage (HM.HashMap T.Text Int)
 telegramBot =
   EchoBot
     { getUpdates = tGetUpdates

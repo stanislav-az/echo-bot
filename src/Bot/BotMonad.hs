@@ -7,7 +7,7 @@ module Bot.BotMonad where
 import Bot.BotClass
 import Control.Monad.Catch
 import Control.Monad.State
-import qualified Data.HashMap.Strict as HM
+import qualified Data.HashMap.Strict as HM (HashMap(..), insert, lookupDefault)
 import qualified Data.Text as T (Text(..))
 import Slack.BotClass
 import Slack.Models
@@ -86,9 +86,11 @@ instance MonadLastMsgState (BotMonad SlackEnv) SlackMessage where
   getLastMsg = gets sLastMsg
   putLastMsg lastMsg = modify $ \s -> s {sLastMsg = lastMsg}
 
-instance MonadRepeatMapState (BotMonad SlackEnv) where
+instance MonadRepeatMapState (BotMonad SlackEnv) HM.HashMap where
   getRepeatMap = gets sRepeatMap
   putRepeatMap repeatMap = modify $ \s -> s {sRepeatMap = repeatMap}
+  lookupRepeatDefault _ v k = HM.lookupDefault v k <$> getRepeatMap
+  insertRepeat _ k v = modifyRepeatMap $ HM.insert k v
 
 instance MonadTelegramStaticOptions (BotMonad TelegramEnv) where
   getTelegramStaticOptions = gets tTelegramStaticOptions
@@ -100,6 +102,8 @@ instance MonadLastMsgState (BotMonad TelegramEnv) TelegramMessage where
   getLastMsg = gets tLastMsg
   putLastMsg lastMsg = modify $ \s -> s {tLastMsg = lastMsg}
 
-instance MonadRepeatMapState (BotMonad TelegramEnv) where
+instance MonadRepeatMapState (BotMonad TelegramEnv) HM.HashMap where
   getRepeatMap = gets tRepeatMap
   putRepeatMap repeatMap = modify $ \s -> s {tRepeatMap = repeatMap}
+  lookupRepeatDefault _ v k = HM.lookupDefault v k <$> getRepeatMap
+  insertRepeat _ k v = modifyRepeatMap $ HM.insert k v

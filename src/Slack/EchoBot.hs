@@ -17,6 +17,7 @@ import Control.Monad (replicateM_, unless, when)
 import Control.Monad.Catch
 import qualified Data.Aeson as JSON (decode)
 import qualified Data.ByteString.Lazy as LB (ByteString(..))
+import qualified Data.HashMap.Strict as HM (HashMap(..))
 import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe)
 import qualified Data.Text as T (Text(..), pack)
 import Ext.Data.Text (textify)
@@ -29,8 +30,12 @@ import Slack.Requests
 import Slack.Serializer
 
 slackBot ::
-     (MonadHTTP m, MonadThrow m, MonadSlackStaticOptions m, MonadTimestampState m)
-  => EchoBot m SlackMessage
+     ( MonadHTTP m
+     , MonadThrow m
+     , MonadSlackStaticOptions m
+     , MonadTimestampState m
+     )
+  => EchoBot m SlackMessage (HM.HashMap T.Text Int)
 slackBot =
   EchoBot
     { getUpdates = sGetUpdates
@@ -48,7 +53,11 @@ sFindLastMsg :: [SlackMessage] -> Maybe SlackMessage
 sFindLastMsg = Safe.lastMay . filter sIsMessage
 
 sGetUpdates ::
-     (MonadSlackStaticOptions m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
+     ( MonadSlackStaticOptions m
+     , MonadHTTP m
+     , MonadThrow m
+     , MonadTimestampState m
+     )
   => Maybe SlackMessage
   -> m [SlackMessage]
 sGetUpdates lastMsg = (++) <$> sAcquireMessages lastMsg <*> sAcquireReactions
@@ -71,7 +80,11 @@ sAcquireMessages mbMsg = do
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions ::
-     (MonadSlackStaticOptions m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
+     ( MonadSlackStaticOptions m
+     , MonadHTTP m
+     , MonadThrow m
+     , MonadTimestampState m
+     )
   => m [SlackMessage]
 sAcquireReactions = getTimestamp >>= maybe (pure []) acquire
   where
@@ -114,7 +127,11 @@ sConvertToTextualMsg Message {..} = pure smText
 sConvertToTextualMsg _ = throwBotLogicMisuse "This SlackMessage has no text"
 
 sSendMsg ::
-     (MonadSlackStaticOptions m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
+     ( MonadSlackStaticOptions m
+     , MonadHTTP m
+     , MonadThrow m
+     , MonadTimestampState m
+     )
   => SlackMessage
   -> m ()
 sSendMsg Message {..} = do
