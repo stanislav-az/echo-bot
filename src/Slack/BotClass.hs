@@ -1,14 +1,14 @@
 module Slack.BotClass where
 
-data SlackConst = SlackConst
+data SlackStaticOptions = SlackStaticOptions
   { sConstToken :: String
   , sConstChannel :: String
   } deriving (Eq, Show)
 
 class (Monad m) =>
-      MonadSlackConst m
+      MonadSlackStaticOptions m
   where
-  getSlackConst :: m SlackConst
+  getSlackStaticOptions :: m SlackStaticOptions
 
 class (Monad m) =>
       MonadTimestampState m

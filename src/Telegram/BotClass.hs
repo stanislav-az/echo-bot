@@ -1,10 +1,10 @@
 module Telegram.BotClass where
 
-data TelegramConst = TelegramConst
+data TelegramStaticOptions = TelegramStaticOptions
   { tConstToken :: String
   } deriving (Eq, Show)
 
 class (Monad m) =>
-      MonadTelegramConst m
+      MonadTelegramStaticOptions m
   where
-  getTelegramConst :: m TelegramConst
+  getTelegramStaticOptions :: m TelegramStaticOptions

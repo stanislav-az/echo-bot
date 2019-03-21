@@ -54,8 +54,8 @@ instance MonadHTTP (BotMonad e) where
   http = liftIO . http
 
 data SlackEnv = SlackEnv
-  { sBotConst :: BotConst
-  , sSlackConst :: SlackConst
+  { sBotStaticOptions :: BotStaticOptions
+  , sSlackStaticOptions :: SlackStaticOptions
   , sLastMsg :: Maybe SlackMessage
   , sTimestamp :: Maybe String
   , sRepeatMap :: HM.HashMap T.Text Int
@@ -64,19 +64,19 @@ data SlackEnv = SlackEnv
 type SlackMonad a = BotMonad SlackEnv a
 
 data TelegramEnv = TelegramEnv
-  { tBotConst :: BotConst
-  , tTelegramConst :: TelegramConst
+  { tBotStaticOptions :: BotStaticOptions
+  , tTelegramStaticOptions :: TelegramStaticOptions
   , tLastMsg :: Maybe TelegramMessage
   , tRepeatMap :: HM.HashMap T.Text Int
   } deriving (Eq, Show)
 
 type TelegramMonad a = BotMonad TelegramEnv a
 
-instance MonadSlackConst (BotMonad SlackEnv) where
-  getSlackConst = gets sSlackConst
+instance MonadSlackStaticOptions (BotMonad SlackEnv) where
+  getSlackStaticOptions = gets sSlackStaticOptions
 
-instance MonadBotConst (BotMonad SlackEnv) where
-  getBotConst = gets sBotConst
+instance MonadBotStaticOptions (BotMonad SlackEnv) where
+  getBotStaticOptions = gets sBotStaticOptions
 
 instance MonadTimestampState (BotMonad SlackEnv) where
   getTimestamp = gets sTimestamp
@@ -90,11 +90,11 @@ instance MonadRepeatMapState (BotMonad SlackEnv) where
   getRepeatMap = gets sRepeatMap
   putRepeatMap repeatMap = modify $ \s -> s {sRepeatMap = repeatMap}
 
-instance MonadTelegramConst (BotMonad TelegramEnv) where
-  getTelegramConst = gets tTelegramConst
+instance MonadTelegramStaticOptions (BotMonad TelegramEnv) where
+  getTelegramStaticOptions = gets tTelegramStaticOptions
 
-instance MonadBotConst (BotMonad TelegramEnv) where
-  getBotConst = gets tBotConst
+instance MonadBotStaticOptions (BotMonad TelegramEnv) where
+  getBotStaticOptions = gets tBotStaticOptions
 
 instance MonadLastMsgState (BotMonad TelegramEnv) TelegramMessage where
   getLastMsg = gets tLastMsg

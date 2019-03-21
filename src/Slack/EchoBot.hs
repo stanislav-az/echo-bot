@@ -29,7 +29,7 @@ import Slack.Requests
 import Slack.Serializer
 
 slackBot ::
-     (MonadHTTP m, MonadThrow m, MonadSlackConst m, MonadTimestampState m)
+     (MonadHTTP m, MonadThrow m, MonadSlackStaticOptions m, MonadTimestampState m)
   => EchoBot m SlackMessage
 slackBot =
   EchoBot
@@ -48,20 +48,20 @@ sFindLastMsg :: [SlackMessage] -> Maybe SlackMessage
 sFindLastMsg = Safe.lastMay . filter sIsMessage
 
 sGetUpdates ::
-     (MonadSlackConst m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
+     (MonadSlackStaticOptions m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
   => Maybe SlackMessage
   -> m [SlackMessage]
 sGetUpdates lastMsg = (++) <$> sAcquireMessages lastMsg <*> sAcquireReactions
 
 sAcquireMessages ::
-     (MonadSlackConst m, MonadHTTP m, MonadThrow m)
+     (MonadSlackStaticOptions m, MonadHTTP m, MonadThrow m)
   => Maybe SlackMessage
   -> m [SlackMessage]
 sAcquireMessages (Just Reaction {..}) =
   throwBotLogicMisuse "This SlackMessage has no timestamp"
 sAcquireMessages mbMsg = do
-  token <- sConstToken <$> getSlackConst
-  channel <- sConstChannel <$> getSlackConst
+  token <- sConstToken <$> getSlackStaticOptions
+  channel <- sConstChannel <$> getSlackStaticOptions
   let conHistory = makeConHistory token channel $ fmap smTimestamp mbMsg
   responseHistory <- http conHistory
   checkResponseStatus responseHistory
@@ -71,13 +71,13 @@ sAcquireMessages mbMsg = do
   pure $ sResponseToMsgs sResponse
 
 sAcquireReactions ::
-     (MonadSlackConst m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
+     (MonadSlackStaticOptions m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
   => m [SlackMessage]
 sAcquireReactions = getTimestamp >>= maybe (pure []) acquire
   where
     acquire timestamp = do
-      token <- sConstToken <$> getSlackConst
-      channel <- sConstChannel <$> getSlackConst
+      token <- sConstToken <$> getSlackStaticOptions
+      channel <- sConstChannel <$> getSlackStaticOptions
       let getReactions = makeGetReactions token channel timestamp
       responseReactions <- http getReactions
       checkResponseStatus responseReactions
@@ -106,20 +106,20 @@ sPutRepeatTextInMsg text sm@Message {..} =
   pure sm {smText = text, smIsRepeatMsg = True}
 sPutRepeatTextInMsg _ _ = throwBotLogicMisuse "This SlackMessage has no text"
 
-sConvertToTextualChat :: MonadSlackConst m => SlackMessage -> m T.Text
-sConvertToTextualChat _ = T.pack . sConstChannel <$> getSlackConst
+sConvertToTextualChat :: MonadSlackStaticOptions m => SlackMessage -> m T.Text
+sConvertToTextualChat _ = T.pack . sConstChannel <$> getSlackStaticOptions
 
 sConvertToTextualMsg :: MonadThrow m => SlackMessage -> m T.Text
 sConvertToTextualMsg Message {..} = pure smText
 sConvertToTextualMsg _ = throwBotLogicMisuse "This SlackMessage has no text"
 
 sSendMsg ::
-     (MonadSlackConst m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
+     (MonadSlackStaticOptions m, MonadHTTP m, MonadThrow m, MonadTimestampState m)
   => SlackMessage
   -> m ()
 sSendMsg Message {..} = do
-  token <- sConstToken <$> getSlackConst
-  channel <- sConstChannel <$> getSlackConst
+  token <- sConstToken <$> getSlackStaticOptions
+  channel <- sConstChannel <$> getSlackStaticOptions
   let postMessage = makePostMessage token channel smText
   response <- http postMessage
   checkResponseStatus response

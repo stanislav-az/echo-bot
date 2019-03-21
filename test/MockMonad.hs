@@ -68,17 +68,17 @@ instance Bot.MonadLogger (MockMonad e) where
 instance Bot.MonadHTTP (MockMonad e) where
   http req = route req $ routes req
 
-instance Bot.MonadSlackConst (MockMonad Bot.SlackEnv) where
-  getSlackConst = Bot.sSlackConst <$> gets mockBotEnv
+instance Bot.MonadSlackStaticOptions (MockMonad Bot.SlackEnv) where
+  getSlackStaticOptions = Bot.sSlackStaticOptions <$> gets mockBotEnv
 
-instance Bot.MonadTelegramConst (MockMonad Bot.TelegramEnv) where
-  getTelegramConst = Bot.tTelegramConst <$> gets mockBotEnv
+instance Bot.MonadTelegramStaticOptions (MockMonad Bot.TelegramEnv) where
+  getTelegramStaticOptions = Bot.tTelegramStaticOptions <$> gets mockBotEnv
 
-instance Bot.MonadBotConst (MockMonad Bot.SlackEnv) where
-  getBotConst = Bot.sBotConst <$> gets mockBotEnv
+instance Bot.MonadBotStaticOptions (MockMonad Bot.SlackEnv) where
+  getBotStaticOptions = Bot.sBotStaticOptions <$> gets mockBotEnv
 
-instance Bot.MonadBotConst (MockMonad Bot.TelegramEnv) where
-  getBotConst = Bot.tBotConst <$> gets mockBotEnv
+instance Bot.MonadBotStaticOptions (MockMonad Bot.TelegramEnv) where
+  getBotStaticOptions = Bot.tBotStaticOptions <$> gets mockBotEnv
 
 instance Bot.MonadLastMsgState (MockMonad Bot.SlackEnv) Bot.SlackMessage where
   getLastMsg = Bot.sLastMsg <$> gets mockBotEnv

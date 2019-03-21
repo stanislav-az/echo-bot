@@ -2,7 +2,7 @@
 
 module Config where
 
-import Bot.BotClass (BotConst(..))
+import Bot.BotClass (BotStaticOptions(..))
 import Bot.BotMonad (SlackEnv(..), TelegramEnv(..))
 import qualified Control.Logger.Simple as L (LogConfig(..))
 import qualified Data.Configurator as C
@@ -20,10 +20,10 @@ import qualified Data.Configurator.Types as C
   )
 import qualified Data.HashMap.Strict as HM (empty)
 import qualified Data.Text as T (Text(..), init, replace)
-import Slack.BotClass (SlackConst(..))
+import Slack.BotClass (SlackStaticOptions(..))
 import qualified System.Directory as D (createDirectoryIfMissing)
 import qualified System.FilePath.Posix as D (takeDirectory)
-import Telegram.BotClass (TelegramConst(..))
+import Telegram.BotClass (TelegramStaticOptions(..))
 
 data Bot
   = Telegram
@@ -61,8 +61,8 @@ makeTelegramEnv = do
   rNum <- getByName conf "repeat_number"
   pure $
     TelegramEnv
-      { tBotConst = BotConst hMsg rMsg rNum
-      , tTelegramConst = TelegramConst token
+      { tBotStaticOptions = BotStaticOptions hMsg rMsg rNum
+      , tTelegramStaticOptions = TelegramStaticOptions token
       , tLastMsg = Nothing
       , tRepeatMap = HM.empty
       }
@@ -77,8 +77,8 @@ makeSlackEnv = do
   rNum <- getByName conf "repeat_number"
   pure $
     SlackEnv
-      { sBotConst = BotConst hMsg rMsg rNum
-      , sSlackConst = SlackConst token channel
+      { sBotStaticOptions = BotStaticOptions hMsg rMsg rNum
+      , sSlackStaticOptions = SlackStaticOptions token channel
       , sLastMsg = Nothing
       , sTimestamp = Nothing
       , sRepeatMap = HM.empty

@@ -29,7 +29,7 @@ data EchoBot m msg = EchoBot
 
 goEchoBot ::
      ( MonadDelay m
-     , MonadBotConst m
+     , MonadBotStaticOptions m
      , MonadLastMsgState m msg
      , MonadRepeatMapState m
      , MonadLogger m
@@ -40,7 +40,7 @@ goEchoBot bot = forever $ botCycle bot
 
 botCycle ::
      ( MonadDelay m
-     , MonadBotConst m
+     , MonadBotStaticOptions m
      , MonadLastMsgState m msg
      , MonadRepeatMapState m
      , MonadLogger m
@@ -62,21 +62,21 @@ botCycle bot = do
         PlainMsg -> processPlainMsg msg
         ReactionMsg -> processReact msg
     processHelpMsg msg = do
-      helpText <- helpMsg <$> getBotConst
+      helpText <- helpMsg <$> getBotStaticOptions
       hMsg <- putHelpTextInMsg bot helpText msg
       sendMsg bot hMsg
       chat <- convertToTextualChat bot msg
       logChatMessage chat helpText
     processPlainMsg msg = do
-      repeat <- defaultRepeatNumber <$> getBotConst
+      repeat <- defaultRepeatNumber <$> getBotStaticOptions
       chat <- convertToTextualChat bot msg
       currRepeat <- lookupRepeatDefault repeat chat
       replicateM_ currRepeat $ sendMsg bot msg
       text <- convertToTextualMsg bot msg
       logChatMessage chat text
     processRepeatMsg msg = do
-      repeat <- defaultRepeatNumber <$> getBotConst
-      repeatText <- repeatMsg <$> getBotConst
+      repeat <- defaultRepeatNumber <$> getBotStaticOptions
+      repeatText <- repeatMsg <$> getBotStaticOptions
       chat <- convertToTextualChat bot msg
       currRepeat <- lookupRepeatDefault repeat chat
       let modRepeatText = repeatText <> textify currRepeat

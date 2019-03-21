@@ -48,16 +48,16 @@ class (Monad m) =>
 instance MonadHTTP IO where
   http = HTTP.httpLBS
 
-data BotConst = BotConst
+data BotStaticOptions = BotStaticOptions
   { helpMsg :: T.Text
   , repeatMsg :: T.Text
   , defaultRepeatNumber :: Int
   } deriving (Eq, Show)
 
 class (Monad m) =>
-      MonadBotConst m
+      MonadBotStaticOptions m
   where
-  getBotConst :: m BotConst
+  getBotStaticOptions :: m BotStaticOptions
 
 class (Monad m) =>
       MonadLastMsgState m msg

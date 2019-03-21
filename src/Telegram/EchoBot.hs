@@ -31,7 +31,7 @@ import Telegram.Serializer
 import qualified Text.Read as T (readMaybe)
 
 telegramBot ::
-     (MonadHTTP m, MonadThrow m, MonadTelegramConst m)
+     (MonadHTTP m, MonadThrow m, MonadTelegramStaticOptions m)
   => EchoBot m TelegramMessage
 telegramBot =
   EchoBot
@@ -53,11 +53,11 @@ tFindLastMsg = fmap modifyUpdateId . Safe.lastMay
     modifyUpdateId tm@Message {..} = tm {tmUpdateId = tmUpdateId + 1}
 
 tGetUpdates ::
-     (MonadTelegramConst m, MonadHTTP m, MonadThrow m)
+     (MonadTelegramStaticOptions m, MonadHTTP m, MonadThrow m)
   => Maybe TelegramMessage
   -> m [TelegramMessage]
 tGetUpdates lastMsg = do
-  token <- tConstToken <$> getTelegramConst
+  token <- tConstToken <$> getTelegramStaticOptions
   let getUpdates = makeGetUpdates token $ fmap getUpdateId lastMsg
   response <- http getUpdates
   checkResponseStatus response
@@ -75,11 +75,11 @@ tRouteMsg Message {..} =
 tRouteMsg _ = ReactionMsg
 
 tSendMsg ::
-     (MonadTelegramConst m, MonadHTTP m, MonadThrow m)
+     (MonadTelegramStaticOptions m, MonadHTTP m, MonadThrow m)
   => TelegramMessage
   -> m ()
 tSendMsg msg@Message {..} = do
-  token <- tConstToken <$> getTelegramConst
+  token <- tConstToken <$> getTelegramStaticOptions
   let req =
         if tmHasKeyboard
           then makeCallbackQuery token tmChatId tmText
@@ -89,13 +89,13 @@ tSendMsg msg@Message {..} = do
 tSendMsg _ = throwBotLogicMisuse "Could not send this TelegramMessage"
 
 tParseToRepeatNumber ::
-     (MonadThrow m, MonadTelegramConst m, MonadHTTP m)
+     (MonadThrow m, MonadTelegramStaticOptions m, MonadHTTP m)
   => TelegramMessage
   -> m (Maybe Int)
 tParseToRepeatNumber Callback {..} = do
   let btn = T.readMaybe tcData :: Maybe Int
   when (isNothing btn) $ throwM $ BadCallbackData tcData
-  token <- tConstToken <$> getTelegramConst
+  token <- tConstToken <$> getTelegramStaticOptions
   let req = makeAnswerCallbackQuery token tcId $ T.pack tcData
   response <- http req
   checkResponseStatus response
