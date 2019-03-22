@@ -7,6 +7,7 @@ import Bot.BotMonad (SlackEnv(..), TelegramEnv(..))
 import qualified Data.HashMap.Strict as HM (empty)
 import Slack.BotClass (SlackStaticOptions(..))
 import Telegram.BotClass (TelegramStaticOptions(..))
+import qualified UnitMap as UM (empty)
 
 getTelegramEnv :: TelegramEnv
 getTelegramEnv =
@@ -36,5 +37,5 @@ getSlackEnv =
           {sConstToken = "slack_token", sConstChannel = "slack_channel"}
     , sLastMsg = Nothing
     , sTimestamp = Nothing
-    , sRepeatMap = HM.empty
+    , sRepeatMap = UM.empty
     }

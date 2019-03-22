@@ -17,7 +17,6 @@ import Control.Monad (replicateM_, unless, when)
 import Control.Monad.Catch
 import qualified Data.Aeson as JSON (decode)
 import qualified Data.ByteString.Lazy as LB (ByteString(..))
-import qualified Data.HashMap.Strict as HM (HashMap(..))
 import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe)
 import qualified Data.Text as T (Text(..), pack)
 import Ext.Data.Text (textify)
@@ -28,6 +27,7 @@ import Slack.BotClass
 import Slack.Models
 import Slack.Requests
 import Slack.Serializer
+import qualified UnitMap as UM (UnitMap(..))
 
 slackBot ::
      ( MonadHTTP m
@@ -35,7 +35,7 @@ slackBot ::
      , MonadSlackStaticOptions m
      , MonadTimestampState m
      )
-  => EchoBot m SlackMessage (HM.HashMap T.Text Int)
+  => EchoBot m SlackMessage (UM.UnitMap T.Text Int)
 slackBot =
   EchoBot
     { getUpdates = sGetUpdates

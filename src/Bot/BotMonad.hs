@@ -13,6 +13,7 @@ import Slack.BotClass
 import Slack.Models
 import Telegram.BotClass
 import Telegram.Models
+import qualified UnitMap as UM
 
 data BotException
   = NoParse ResponseBody
@@ -58,7 +59,7 @@ data SlackEnv = SlackEnv
   , sSlackStaticOptions :: SlackStaticOptions
   , sLastMsg :: Maybe SlackMessage
   , sTimestamp :: Maybe String
-  , sRepeatMap :: HM.HashMap T.Text Int
+  , sRepeatMap :: UM.UnitMap T.Text Int
   } deriving (Eq, Show)
 
 type SlackMonad a = BotMonad SlackEnv a
@@ -86,11 +87,11 @@ instance MonadLastMsgState (BotMonad SlackEnv) SlackMessage where
   getLastMsg = gets sLastMsg
   putLastMsg lastMsg = modify $ \s -> s {sLastMsg = lastMsg}
 
-instance MonadRepeatMapState (BotMonad SlackEnv) HM.HashMap where
+instance MonadRepeatMapState (BotMonad SlackEnv) UM.UnitMap where
   getRepeatMap = gets sRepeatMap
   putRepeatMap repeatMap = modify $ \s -> s {sRepeatMap = repeatMap}
-  lookupRepeatDefault _ v k = HM.lookupDefault v k <$> getRepeatMap
-  insertRepeat _ k v = modifyRepeatMap $ HM.insert k v
+  lookupRepeatDefault _ v _ = UM.lookupDefault v <$> getRepeatMap
+  insertRepeat _ _ v = putRepeatMap $ UM.insert v
 
 instance MonadTelegramStaticOptions (BotMonad TelegramEnv) where
   getTelegramStaticOptions = gets tTelegramStaticOptions

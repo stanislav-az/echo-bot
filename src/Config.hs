@@ -24,6 +24,7 @@ import Slack.BotClass (SlackStaticOptions(..))
 import qualified System.Directory as D (createDirectoryIfMissing)
 import qualified System.FilePath.Posix as D (takeDirectory)
 import Telegram.BotClass (TelegramStaticOptions(..))
+import qualified UnitMap as UM (empty)
 
 data Bot
   = Telegram
@@ -81,7 +82,7 @@ makeSlackEnv = do
       , sSlackStaticOptions = SlackStaticOptions token channel
       , sLastMsg = Nothing
       , sTimestamp = Nothing
-      , sRepeatMap = HM.empty
+      , sRepeatMap = UM.empty
       }
 
 getSlackHelpMsg :: C.Config -> IO T.Text

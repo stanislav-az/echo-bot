@@ -12,6 +12,7 @@ import qualified Bot.BotMonad as Bot
 import qualified Bot.EchoBot as Bot
 import Control.Monad.Catch.Pure
 import Control.Monad.State
+import qualified Data.HashMap.Strict as HM (HashMap(..), insert, lookupDefault)
 import Data.Maybe (fromMaybe, listToMaybe)
 import qualified Data.Text as T (Text(..))
 import MockConfig (getSlackEnv, getTelegramEnv)
@@ -23,6 +24,7 @@ import qualified Slack.Models as Bot
 import qualified Telegram.BotClass as Bot
 import qualified Telegram.EchoBot as Bot
 import qualified Telegram.Models as Bot
+import qualified UnitMap as UM
 
 data MockIO e = MockIO
   { mockLog :: [MockLog]
@@ -97,17 +99,21 @@ instance Bot.MonadTimestampState (MockMonad Bot.SlackEnv) where
   putTimestamp ts =
     modify $ \s@MockIO {..} -> s {mockBotEnv = mockBotEnv {Bot.sTimestamp = ts}}
 
-instance Bot.MonadRepeatMapState (MockMonad Bot.SlackEnv) where
+instance Bot.MonadRepeatMapState (MockMonad Bot.SlackEnv) UM.UnitMap where
   getRepeatMap = Bot.sRepeatMap <$> gets mockBotEnv
   putRepeatMap repeatMap =
     modify $ \s@MockIO {..} ->
       s {mockBotEnv = mockBotEnv {Bot.sRepeatMap = repeatMap}}
+  lookupRepeatDefault _ v _ = UM.lookupDefault v <$> Bot.getRepeatMap
+  insertRepeat _ _ v = Bot.putRepeatMap $ UM.insert v
 
-instance Bot.MonadRepeatMapState (MockMonad Bot.TelegramEnv) where
+instance Bot.MonadRepeatMapState (MockMonad Bot.TelegramEnv) HM.HashMap where
   getRepeatMap = Bot.tRepeatMap <$> gets mockBotEnv
   putRepeatMap repeatMap =
     modify $ \s@MockIO {..} ->
       s {mockBotEnv = mockBotEnv {Bot.tRepeatMap = repeatMap}}
+  lookupRepeatDefault _ v k = HM.lookupDefault v k <$> Bot.getRepeatMap
+  insertRepeat _ k v = Bot.modifyRepeatMap $ HM.insert k v
 
 mockIOSlack :: MockIO Bot.SlackEnv
 mockIOSlack =
