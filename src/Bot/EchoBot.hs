@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Bot.EchoBot where
 
@@ -74,7 +75,7 @@ botCycle bot = do
     processPlainMsg msg = do
       repeat <- defaultRepeatNumber <$> getBotStaticOptions
       chat <- convertToTextualChat bot msg
-      currRepeat <- lookupRepeatDefault (Proxy :: Proxy map) repeat chat
+      currRepeat <- lookupRepeatDefault @m @map Proxy repeat chat
       replicateM_ currRepeat $ sendMsg bot msg
       text <- convertToTextualMsg bot msg
       logChatMessage chat text
@@ -82,7 +83,7 @@ botCycle bot = do
       repeat <- defaultRepeatNumber <$> getBotStaticOptions
       repeatText <- repeatMsg <$> getBotStaticOptions
       chat <- convertToTextualChat bot msg
-      currRepeat <- lookupRepeatDefault (Proxy :: Proxy map) repeat chat
+      currRepeat <- lookupRepeatDefault @m @map Proxy repeat chat
       let modRepeatText = repeatText <> textify currRepeat
       rMsg <- putRepeatTextInMsg bot modRepeatText msg
       sendMsg bot rMsg
@@ -92,5 +93,5 @@ botCycle bot = do
       maybe (pure ()) (modifyAndLog react) mbRepeat
     modifyAndLog react repeat = do
       chat <- convertToTextualChat bot react
-      insertRepeat (Proxy :: Proxy map) chat repeat
+      insertRepeat @m @map Proxy chat repeat
       logChatRepeat chat $ textify repeat
