@@ -1,5 +1,5 @@
 name:                saz-echo-bot
-version:             0.1.0.0
+version:             0.1.1.0
 github:              "stanislav-az/saz-echo-bot"
 license:             BSD3
 author:              "Stanislav Zhdanovich"
@@ -33,7 +33,7 @@ dependencies:
 - exceptions
 - unordered-containers
 - http-types
-- safe 
+- safe
 
 library:
   source-dirs: src
@@ -63,4 +63,3 @@ tests:
     - http-client
     - tasty
     - tasty-hspec
-    
